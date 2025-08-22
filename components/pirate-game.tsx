@@ -536,6 +536,13 @@ export default function PirateGame() {
   const [animationFrame, setAnimationFrame] = useState(0)
   const [canvasSize, setCanvasSize] = useState(getResponsiveCanvasSize())
   const [gameOverTimer, setGameOverTimer] = useState<NodeJS.Timeout | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [keys, setKeys] = useState({
+    left: false,
+    right: false,
+    up: false,
+    down: false
+  })
 
   // Game controls
   const jump = useCallback(() => {
@@ -568,25 +575,67 @@ export default function PirateGame() {
     }
   }, [gameState.isPlaying, player.isSliding])
 
-  // Keyboard controls
+  // Key handling for manual movement
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!gameState.isPlaying) return
+      
       switch (e.code) {
-        case "Space":
-        case "ArrowUp":
+        case "ArrowLeft":
+        case "KeyA":
+          setKeys(prev => ({ ...prev, left: true }))
           e.preventDefault()
+          break
+        case "ArrowRight":
+        case "KeyD":
+          setKeys(prev => ({ ...prev, right: true }))
+          e.preventDefault()
+          break
+        case "ArrowUp":
+        case "KeyW":
+        case "Space":
+          setKeys(prev => ({ ...prev, up: true }))
           jump()
+          e.preventDefault()
           break
         case "ArrowDown":
-          e.preventDefault()
+        case "KeyS":
+          setKeys(prev => ({ ...prev, down: true }))
           slide()
+          e.preventDefault()
           break
       }
     }
 
-    window.addEventListener("keydown", handleKeyPress)
-    return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [jump, slide])
+    const handleKeyUp = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case "ArrowLeft":
+        case "KeyA":
+          setKeys(prev => ({ ...prev, left: false }))
+          break
+        case "ArrowRight":
+        case "KeyD":
+          setKeys(prev => ({ ...prev, right: false }))
+          break
+        case "ArrowUp":
+        case "KeyW":
+        case "Space":
+          setKeys(prev => ({ ...prev, up: false }))
+          break
+        case "ArrowDown":
+        case "KeyS":
+          setKeys(prev => ({ ...prev, down: false }))
+          break
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyUp)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyUp)
+    }
+  }, [gameState.isPlaying, jump, slide, keys])
 
   // Touch controls
   const handleTouchStart = useCallback(
@@ -1288,21 +1337,21 @@ export default function PirateGame() {
     // Draw clouds
     drawClouds(ctx)
 
-    // Update and draw clouds movement
+    // Update and draw clouds movement (slower for atmosphere)
     setClouds((prev) =>
       prev.map((cloud) => ({
         ...cloud,
-        x: cloud.x < -cloud.size ? canvasSize.width + Math.random() * 200 : cloud.x - cloud.speed,
+        x: cloud.x < -cloud.size ? canvasSize.width + Math.random() * 200 : cloud.x - cloud.speed * 0.5,
       })),
     )
 
     // Draw animated waves
     drawWaves(ctx, animationFrame, canvasSize.width, canvasSize.height)
 
-    // Draw moving dock planks with enhanced detail
+    // Draw static dock planks with enhanced detail
     ctx.fillStyle = "#8b4513"
     for (let i = 0; i < CANVAS_WIDTH + 100; i += 50) {
-      const x = (i - backgroundX) % (CANVAS_WIDTH + 100)
+      const x = i
       ctx.fillRect(x, 332, 48, 68)
 
       // Wood grain
@@ -1324,12 +1373,23 @@ export default function PirateGame() {
       ctx.strokeRect(x, 332, 48, 68)
     }
 
-    // Update player physics
+    // Update player physics and manual movement
     setPlayer((prev) => {
+      let newX = prev.x
       let newY = prev.y + prev.velocityY
       let newVelocityY = prev.velocityY + GRAVITY
       let newIsJumping = prev.isJumping
 
+      // Manual horizontal movement
+      const moveSpeed = 5
+      if (keys.left && newX > 0) {
+        newX -= moveSpeed
+      }
+      if (keys.right && newX < canvasSize.width - prev.width) {
+        newX += moveSpeed
+      }
+
+      // Vertical physics
       if (newY >= prev.groundY) {
         newY = prev.groundY
         newVelocityY = 0
@@ -1338,6 +1398,7 @@ export default function PirateGame() {
 
       return {
         ...prev,
+        x: newX,
         y: newY,
         velocityY: newVelocityY,
         isJumping: newIsJumping,
@@ -1454,9 +1515,9 @@ export default function PirateGame() {
       const updated = prev
         .map((powerUp) => ({
           ...powerUp,
-          x: powerUp.x - gameState.gameSpeed,
+          x: powerUp.x, // Power-ups stay stationary
         }))
-        .filter((powerUp) => powerUp.x > -powerUp.width && !powerUp.collected)
+        .filter((powerUp) => !powerUp.collected) // Remove x position filter since they don't move
 
       // Add new power-ups occasionally
       if (Math.random() < 0.005) {
@@ -1479,11 +1540,11 @@ export default function PirateGame() {
           const magnetPos = checkCoinMagnet(coin)
           return {
             ...coin,
-            x: magnetPos.x - gameState.gameSpeed,
+            x: magnetPos.x, // Coins stay stationary
             y: magnetPos.y,
           }
         })
-        .filter((coin) => coin.x > -coin.width && !coin.collected)
+        .filter((coin) => !coin.collected) // Remove x position filter since coins don't move
 
       // Add new coins
       if (Math.random() < 0.02) {
@@ -1597,8 +1658,8 @@ export default function PirateGame() {
       }),
     )
 
-    // Update background
-    setBackgroundX((prev) => (prev + gameState.gameSpeed) % 100)
+    // No automatic background scrolling - only obstacles move
+    // Background stays static for manual player control
 
     // Update score
     setGameState((prev) => ({ ...prev, score: prev.score + 1 }))
@@ -1791,6 +1852,62 @@ export default function PirateGame() {
     setShowLeaderboard(false)
   }
 
+  // Fullscreen and orientation functions
+  const enterFullscreen = async () => {
+    if (typeof window !== 'undefined' && isMobile()) {
+      try {
+        const element = document.documentElement
+        if (element.requestFullscreen) {
+          await element.requestFullscreen()
+        } else if ((element as any).webkitRequestFullscreen) {
+          await (element as any).webkitRequestFullscreen()
+        } else if ((element as any).msRequestFullscreen) {
+          await (element as any).msRequestFullscreen()
+        }
+        
+        // Request landscape orientation
+        if ((screen as any).orientation && (screen as any).orientation.lock) {
+          try {
+            await (screen as any).orientation.lock('landscape')
+          } catch (e) {
+            console.log('Orientation lock not supported')
+          }
+        }
+        
+        setIsFullscreen(true)
+      } catch (e) {
+        console.log('Fullscreen not supported')
+      }
+    }
+  }
+
+  const exitFullscreen = async () => {
+    if (typeof window !== 'undefined') {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen()
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen()
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen()
+        }
+        
+        // Unlock orientation
+        if ((screen as any).orientation && (screen as any).orientation.unlock) {
+          try {
+            (screen as any).orientation.unlock()
+          } catch (e) {
+            console.log('Orientation unlock not supported')
+          }
+        }
+        
+        setIsFullscreen(false)
+      } catch (e) {
+        console.log('Exit fullscreen not supported')
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col items-center gap-2 sm:gap-4 max-w-4xl mx-auto p-1 sm:p-4 min-h-screen">
       {/* Enhanced Game HUD */}
@@ -1861,6 +1978,61 @@ export default function PirateGame() {
           onTouchStart={handleTouchStart}
           onClick={gameState.isPlaying ? undefined : startGame}
         />
+
+        {/* Mobile Arrow Controls */}
+        {isMobile() && gameState.isPlaying && (
+          <div className="absolute bottom-20 left-4 right-4 flex justify-between pointer-events-none">
+            {/* Left side controls */}
+            <div className="flex flex-col gap-2 pointer-events-auto">
+              <div className="flex gap-2">
+                {/* Left arrow */}
+                <button
+                  className="w-12 h-12 bg-blue-600/80 text-white rounded-lg border-2 border-blue-300 shadow-lg active:bg-blue-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
+                  onTouchStart={() => setKeys(prev => ({ ...prev, left: true }))}
+                  onTouchEnd={() => setKeys(prev => ({ ...prev, left: false }))}
+                  onMouseDown={() => setKeys(prev => ({ ...prev, left: true }))}
+                  onMouseUp={() => setKeys(prev => ({ ...prev, left: false }))}
+                >
+                  ←
+                </button>
+                {/* Right arrow */}
+                <button
+                  className="w-12 h-12 bg-blue-600/80 text-white rounded-lg border-2 border-blue-300 shadow-lg active:bg-blue-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
+                  onTouchStart={() => setKeys(prev => ({ ...prev, right: true }))}
+                  onTouchEnd={() => setKeys(prev => ({ ...prev, right: false }))}
+                  onMouseDown={() => setKeys(prev => ({ ...prev, right: true }))}
+                  onMouseUp={() => setKeys(prev => ({ ...prev, right: false }))}
+                >
+                  →
+                </button>
+              </div>
+            </div>
+            
+            {/* Right side controls */}
+            <div className="flex flex-col gap-2 pointer-events-auto">
+              {/* Jump button */}
+              <button
+                className="w-12 h-12 bg-green-600/80 text-white rounded-lg border-2 border-green-300 shadow-lg active:bg-green-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
+                onTouchStart={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
+                onTouchEnd={() => setKeys(prev => ({ ...prev, up: false }))}
+                onMouseDown={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
+                onMouseUp={() => setKeys(prev => ({ ...prev, up: false }))}
+              >
+                ↑
+              </button>
+              {/* Slide button */}
+              <button
+                className="w-12 h-12 bg-red-600/80 text-white rounded-lg border-2 border-red-300 shadow-lg active:bg-red-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
+                onTouchStart={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
+                onTouchEnd={() => setKeys(prev => ({ ...prev, down: false }))}
+                onMouseDown={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
+                onMouseUp={() => setKeys(prev => ({ ...prev, down: false }))}
+              >
+                ↓
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Daily Challenges Screen */}
         {showChallenges && !gameState.isPlaying && (
@@ -2136,10 +2308,10 @@ export default function PirateGame() {
           <h3 className="font-bold mb-1 sm:mb-3 text-blue-800 text-xs sm:text-base">Controls & Status</h3>
           <div className="flex flex-col sm:flex-row justify-center gap-1 sm:gap-8 text-xs mb-1 sm:mb-2">
             <div className="bg-white p-1 sm:p-2 rounded border">
-              <strong className="text-blue-600">PC:</strong> Space/↑ to Jump, ↓ to Slide
+              <strong className="text-blue-600">PC:</strong> Arrow Keys/WASD to Move, Space/↑ to Jump, ↓ to Slide
             </div>
             <div className="bg-white p-1 sm:p-2 rounded border">
-              <strong className="text-blue-600">Mobile:</strong> Tap upper half to Jump, lower half to Slide
+              <strong className="text-blue-600">Mobile:</strong> Use on-screen arrows to move, tap buttons to jump/slide
             </div>
           </div>
           <div className="flex flex-wrap justify-center gap-1 sm:gap-2 text-xs">
