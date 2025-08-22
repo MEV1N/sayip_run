@@ -344,28 +344,32 @@ button:disabled {
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .game-canvas {
-    max-width: calc(100vw - 32px) !important;
-    max-height: 30vh !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain;
+    max-width: 100vw !important;
+    max-height: 70vh !important;
+    width: 100vw !important;
+    height: 70vh !important;
+    object-fit: cover !important;
+    border: none !important;
   }
   
-  /* Make the entire game container more compact on mobile */
+  /* Make the entire game container fill screen on mobile */
   .flex.flex-col.items-center {
-    gap: 8px !important;
-    padding: 8px !important;
+    gap: 4px !important;
+    padding: 0 !important;
+    height: 100vh !important;
+    justify-content: flex-start !important;
   }
   
-  /* Make UI cards more compact */
+  /* Hide or minimize UI cards on mobile during gameplay */
   .p-2.sm\\:p-4 {
-    padding: 8px !important;
+    padding: 4px !important;
+    font-size: 10px !important;
   }
   
   /* Stack HUD elements vertically on very small screens */
   .flex.flex-col.sm\\:flex-row {
     flex-direction: column !important;
-    gap: 8px !important;
+    gap: 2px !important;
   }
   
   /* Make UI elements more touch-friendly */
@@ -378,11 +382,11 @@ button:disabled {
   
   /* Reduce text sizes on mobile */
   .text-sm.sm\\:text-lg {
-    font-size: 12px !important;
+    font-size: 10px !important;
   }
   
   .text-sm.sm\\:text-base {
-    font-size: 11px !important;
+    font-size: 9px !important;
   }
   
   /* Make modals more mobile-friendly */
@@ -402,45 +406,76 @@ button:disabled {
   .md\\:grid-cols-2 {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
+  
+  /* Hide controls card on mobile */
+  .w-full.p-1 {
+    display: none !important;
+  }
 }
 
 /* Landscape mode optimizations for mobile controls */
 @media (max-width: 768px) and (orientation: landscape) {
   .game-canvas {
-    max-width: calc(100vw - 16px) !important;
-    max-height: calc(100vh - 120px) !important;
-    width: auto !important;
-    height: auto !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    border: none !important;
+  }
+  
+  /* Full screen container in landscape */
+  .flex.flex-col.items-center {
+    height: 100vh !important;
+    padding: 0 !important;
+    gap: 0 !important;
   }
   
   /* Make controls smaller in landscape */
   .absolute.bottom-4 button {
-    width: 50px !important;
-    height: 50px !important;
-    font-size: 18px !important;
+    width: 60px !important;
+    height: 60px !important;
+    font-size: 24px !important;
   }
   
   /* Adjust control positioning for landscape */
   .absolute.bottom-4 {
-    bottom: 8px !important;
+    bottom: 16px !important;
+    left: 16px !important;
+    right: 16px !important;
+  }
+  
+  /* Hide all UI except game and controls in landscape */
+  body > div > div > div:not(.relative) {
+    display: none !important;
   }
 }
 
-/* Portrait mode optimizations - even more compact */
+/* Portrait mode optimizations - larger game area */
 @media (max-width: 768px) and (orientation: portrait) {
   .game-canvas {
-    max-width: calc(100vw - 16px) !important;
-    max-height: 25vh !important;
+    max-width: 100vw !important;
+    max-height: 50vh !important;
+    width: 100vw !important;
+    height: 50vh !important;
+    object-fit: cover !important;
   }
   
   /* More compact layout for portrait */
   .gap-3.sm\\:gap-6 {
-    gap: 6px !important;
+    gap: 2px !important;
   }
   
   /* Smaller padding for portrait mode */
   .p-2.sm\\:p-4 {
-    padding: 6px !important;
+    padding: 2px !important;
+  }
+  
+  /* Make controls larger in portrait for better touch */
+  .absolute.bottom-4 button {
+    width: 70px !important;
+    height: 70px !important;
+    font-size: 28px !important;
   }
 }
 

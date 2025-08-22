@@ -165,36 +165,20 @@ const getResponsiveCanvasSize = () => {
   const screenHeight = window.innerHeight
   
   if (mobile) {
-    // For mobile, make canvas much smaller to fit better
-    const padding = 16
-    let maxWidth, maxHeight
+    // For mobile, make canvas large and playable
+    const isLandscape = screenWidth > screenHeight
     
-    if (screenWidth <= 480) {
-      // Very small screens
-      maxWidth = Math.min(screenWidth - padding, 280)
-      maxHeight = screenHeight * 0.15
-    } else if (screenWidth <= 768) {
-      // Medium mobile screens
-      maxWidth = Math.min(screenWidth - padding, 320)
-      maxHeight = screenHeight * 0.2
+    if (isLandscape) {
+      // Landscape mode - use almost full screen
+      const width = Math.floor(screenWidth * 0.95)
+      const height = Math.floor(screenHeight * 0.85)
+      return { width, height }
     } else {
-      // Larger mobile screens
-      maxWidth = Math.min(screenWidth - padding, 400)
-      maxHeight = screenHeight * 0.25
+      // Portrait mode - use significant portion of screen
+      const width = Math.floor(screenWidth * 0.95)
+      const height = Math.floor(screenHeight * 0.5)
+      return { width, height }
     }
-    
-    const aspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT
-    
-    let width = maxWidth
-    let height = width / aspectRatio
-    
-    // Ensure height doesn't exceed max height
-    if (height > maxHeight) {
-      height = maxHeight
-      width = height * aspectRatio
-    }
-    
-    return { width: Math.floor(width), height: Math.floor(height) }
   }
   
   return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }
@@ -2345,8 +2329,8 @@ export default function PirateGame() {
         )}
       </div>
 
-      {/* Enhanced Controls */}
-      <Card className="w-full p-1 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+      {/* Enhanced Controls - Hidden on mobile */}
+      <Card className="w-full p-1 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 hidden sm:block">
         <div className="text-center text-card-foreground">
           <h3 className="font-bold mb-1 sm:mb-3 text-blue-800 text-xs sm:text-base">Controls & Status</h3>
           <div className="flex flex-col sm:flex-row justify-center gap-1 sm:gap-8 text-xs mb-1 sm:mb-2">
