@@ -1687,7 +1687,7 @@ export default function PirateGame() {
     setProjectiles([])
     setBackgroundX(0)
     setParticles([])
-    setShowShipUpgrades(false)
+    closeAllMenus()
     
     // Clear any existing game over timer
     if (gameOverTimer) {
@@ -1755,6 +1755,42 @@ export default function PirateGame() {
     setGameState((prev) => ({ ...prev, isPaused: !prev.isPaused }))
   }
 
+  // Helper functions to handle menu opening/closing
+  const openShipUpgrades = () => {
+    setShowChallenges(false)
+    setShowOutfits(false)
+    setShowLeaderboard(false)
+    setShowShipUpgrades(true)
+  }
+
+  const openChallenges = () => {
+    setShowShipUpgrades(false)
+    setShowOutfits(false)
+    setShowLeaderboard(false)
+    setShowChallenges(true)
+  }
+
+  const openOutfits = () => {
+    setShowShipUpgrades(false)
+    setShowChallenges(false)
+    setShowLeaderboard(false)
+    setShowOutfits(true)
+  }
+
+  const openLeaderboard = () => {
+    setShowShipUpgrades(false)
+    setShowChallenges(false)
+    setShowOutfits(false)
+    setShowLeaderboard(true)
+  }
+
+  const closeAllMenus = () => {
+    setShowShipUpgrades(false)
+    setShowChallenges(false)
+    setShowOutfits(false)
+    setShowLeaderboard(false)
+  }
+
   return (
     <div className="flex flex-col items-center gap-2 sm:gap-4 max-w-4xl mx-auto p-1 sm:p-4 min-h-screen">
       {/* Enhanced Game HUD */}
@@ -1792,16 +1828,16 @@ export default function PirateGame() {
             )}
             {!gameState.isPlaying && (
               <div className="flex gap-1">
-                <Button onClick={() => setShowShipUpgrades(!showShipUpgrades)} variant="outline" size="sm">
+                <Button onClick={openShipUpgrades} variant="outline" size="sm">
                   Ship
                 </Button>
-                <Button onClick={() => setShowChallenges(!showChallenges)} variant="outline" size="sm">
+                <Button onClick={openChallenges} variant="outline" size="sm">
                   Challenges
                 </Button>
-                <Button onClick={() => setShowOutfits(!showOutfits)} variant="outline" size="sm">
+                <Button onClick={openOutfits} variant="outline" size="sm">
                   Outfits
                 </Button>
-                <Button onClick={() => setShowLeaderboard(!showLeaderboard)} variant="outline" size="sm">
+                <Button onClick={openLeaderboard} variant="outline" size="sm">
                   Stats
                 </Button>
               </div>
@@ -1864,7 +1900,7 @@ export default function PirateGame() {
               </div>
 
               <div className="text-center">
-                <Button onClick={() => setShowChallenges(false)} className="bg-primary text-primary-foreground">
+                <Button onClick={closeAllMenus} className="bg-primary text-primary-foreground">
                   Close
                 </Button>
               </div>
@@ -1923,7 +1959,7 @@ export default function PirateGame() {
               </div>
 
               <div className="text-center">
-                <Button onClick={() => setShowOutfits(false)} className="bg-primary text-primary-foreground">
+                <Button onClick={closeAllMenus} className="bg-primary text-primary-foreground">
                   Close
                 </Button>
               </div>
@@ -1962,7 +1998,7 @@ export default function PirateGame() {
               </div>
 
               <div className="text-center">
-                <Button onClick={() => setShowLeaderboard(false)} className="bg-primary text-primary-foreground">
+                <Button onClick={closeAllMenus} className="bg-primary text-primary-foreground">
                   Close
                 </Button>
               </div>
@@ -2032,7 +2068,7 @@ export default function PirateGame() {
               </div>
 
               <div className="text-center">
-                <Button onClick={() => setShowShipUpgrades(false)} className="bg-primary text-primary-foreground">
+                <Button onClick={closeAllMenus} className="bg-primary text-primary-foreground">
                   Close
                 </Button>
               </div>
@@ -2070,7 +2106,7 @@ export default function PirateGame() {
                   {gameState.score > 0 ? "Try Again" : "Start Adventure"}
                 </Button>
                 <Button
-                  onClick={() => setShowShipUpgrades(true)}
+                  onClick={openShipUpgrades}
                   variant="outline"
                   className="border-amber-300 hover:bg-amber-50"
                 >
