@@ -1,5 +1,4 @@
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
 
 :root {
   /* Updated color tokens for tropical pirate theme */
@@ -76,14 +75,162 @@
 
 @layer base {
   * {
-    border-color: var(--color-border);
-    outline-color: rgba(var(--color-ring), 0.5);
+    border-color: var(--border);
+    outline-color: rgba(var(--ring), 0.5);
   }
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }
+
+/* Define color mappings for components */
+:root {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* Essential layout utilities */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-row {
+  flex-direction: row;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-6 { gap: 1.5rem; }
+.gap-8 { gap: 2rem; }
+
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+
+.px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+
+.w-full { width: 100%; }
+.max-w-2xl { max-width: 42rem; }
+.max-w-3xl { max-width: 48rem; }
+.max-w-4xl { max-width: 56rem; }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+.text-center { text-align: center; }
+.text-xs { font-size: 0.75rem; }
+.text-sm { font-size: 0.875rem; }
+.text-lg { font-size: 1.125rem; }
+.text-xl { font-size: 1.25rem; }
+.text-2xl { font-size: 1.5rem; }
+
+.font-bold { font-weight: 700; }
+.font-medium { font-weight: 500; }
+
+.relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+
+.bg-black\/80 { background-color: rgba(0, 0, 0, 0.8); }
+.bg-white { background-color: #ffffff; }
+
+.overflow-y-auto { overflow-y: auto; }
+.max-h-full { max-height: 100%; }
+
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.flex-wrap { flex-wrap: wrap; }
+
+/* Color utilities */
+.bg-amber-50 { background-color: #fffbeb; }
+.bg-amber-100 { background-color: #fef3c7; }
+.bg-amber-200 { background-color: #fde68a; }
+.bg-amber-500 { background-color: #f59e0b; }
+.bg-amber-600 { background-color: #d97706; }
+.bg-blue-50 { background-color: #eff6ff; }
+.bg-blue-100 { background-color: #dbeafe; }
+.bg-blue-200 { background-color: #bfdbfe; }
+.bg-blue-500 { background-color: #3b82f6; }
+.bg-green-50 { background-color: #f0fdf4; }
+.bg-green-100 { background-color: #dcfce7; }
+.bg-green-200 { background-color: #bbf7d0; }
+.bg-green-500 { background-color: #22c55e; }
+.bg-yellow-50 { background-color: #fefce8; }
+.bg-yellow-100 { background-color: #fef3c7; }
+.bg-purple-50 { background-color: #faf5ff; }
+.bg-purple-100 { background-color: #f3e8ff; }
+.bg-orange-50 { background-color: #fff7ed; }
+.bg-orange-100 { background-color: #ffedd5; }
+.bg-indigo-50 { background-color: #eef2ff; }
+.bg-gray-100 { background-color: #f3f4f6; }
+.bg-gray-200 { background-color: #e5e7eb; }
+
+.text-amber-600 { color: #d97706; }
+.text-amber-700 { color: #b45309; }
+.text-amber-800 { color: #92400e; }
+.text-yellow-500 { color: #eab308; }
+.text-yellow-600 { color: #ca8a04; }
+.text-yellow-800 { color: #854d0e; }
+.text-red-500 { color: #ef4444; }
+.text-blue-600 { color: #2563eb; }
+.text-blue-800 { color: #1e40af; }
+.text-green-800 { color: #166534; }
+.text-purple-600 { color: #9333ea; }
+.text-purple-800 { color: #6b21a8; }
+.text-gray-600 { color: #4b5563; }
+
+.border-amber-200 { border-color: #fde68a; }
+.border-blue-200 { border-color: #bfdbfe; }
+.border-green-200 { border-color: #bbf7d0; }
+
+.hover\\:bg-amber-700:hover { background-color: #b45309; }
+.hover\\:bg-amber-600:hover { background-color: #d97706; }
 
 /* Added game-specific styles */
 .pixel-art {
@@ -93,37 +240,186 @@
 }
 
 .game-canvas {
-  border: 2px solid var(--border);
+  border: 2px solid var(--color-border);
   background: linear-gradient(to bottom, #87ceeb 0%, #98d8e8 50%, #87ceeb 100%);
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Ensure modal overlays work properly */
+.absolute.inset-0 {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+}
+
+/* Ensure cards have proper styling */
+.bg-card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+}
+
+.bg-muted {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.text-card-foreground {
+  color: var(--card-foreground);
+}
+
+.text-muted-foreground {
+  color: var(--muted-foreground);
+}
+
+.bg-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.text-primary-foreground {
+  color: var(--primary-foreground);
+}
+
+.border-border {
+  border-color: var(--border);
+}
+
+/* Button styling */
+button {
+  border-radius: calc(var(--radius) - 2px);
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Card styling */
+.rounded-lg {
+  border-radius: var(--radius);
+}
+
+.border {
+  border-width: 1px;
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .game-canvas {
-    max-width: calc(100vw - 2rem);
+    max-width: calc(100vw - 32px) !important;
+    max-height: 30vh !important;
+    width: auto !important;
     height: auto !important;
+    object-fit: contain;
   }
   
-  /* Prevent zoom on double tap */
-  .game-canvas {
-    touch-action: manipulation;
+  /* Make the entire game container more compact on mobile */
+  .flex.flex-col.items-center {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+  
+  /* Make UI cards more compact */
+  .p-2.sm\\:p-4 {
+    padding: 8px !important;
+  }
+  
+  /* Stack HUD elements vertically on very small screens */
+  .flex.flex-col.sm\\:flex-row {
+    flex-direction: column !important;
+    gap: 8px !important;
   }
   
   /* Make UI elements more touch-friendly */
   button {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  /* Reduce text sizes on mobile */
+  .text-sm.sm\\:text-lg {
+    font-size: 12px !important;
+  }
+  
+  .text-sm.sm\\:text-base {
+    font-size: 11px !important;
+  }
+  
+  /* Make modals more mobile-friendly */
+  .absolute.inset-0 {
+    padding: 8px;
+  }
+  
+  .max-w-2xl, .max-w-3xl {
+    max-width: calc(100vw - 16px) !important;
+  }
+  
+  /* Responsive grid */
+  .grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+  
+  .md\\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
 }
 
-/* Portrait mode optimizations */
+/* Portrait mode optimizations - even more compact */
 @media (max-width: 768px) and (orientation: portrait) {
   .game-canvas {
-    max-width: calc(100vw - 1rem);
-    width: 100% !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: 25vh !important;
+  }
+  
+  /* More compact layout for portrait */
+  .gap-3.sm\\:gap-6 {
+    gap: 6px !important;
+  }
+  
+  /* Smaller padding for portrait mode */
+  .p-2.sm\\:p-4 {
+    padding: 6px !important;
+  }
+}
+
+/* Very small screens (under 480px) */
+@media (max-width: 480px) {
+  .game-canvas {
+    max-width: calc(100vw - 8px) !important;
+    max-height: 20vh !important;
+  }
+  
+  body {
+    font-size: 12px;
+  }
+  
+  button {
+    font-size: 10px;
+    padding: 4px 8px;
+    min-height: 36px;
   }
 }

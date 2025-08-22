@@ -165,13 +165,36 @@ const getResponsiveCanvasSize = () => {
   const screenHeight = window.innerHeight
   
   if (mobile) {
-    // For mobile portrait mode, make canvas fit better
-    const maxWidth = Math.min(screenWidth - 32, 600) // 32px for padding
-    const aspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT
-    const height = Math.min(maxWidth / aspectRatio, screenHeight * 0.4)
-    const width = height * aspectRatio
+    // For mobile, make canvas much smaller to fit better
+    const padding = 16
+    let maxWidth, maxHeight
     
-    return { width, height }
+    if (screenWidth <= 480) {
+      // Very small screens
+      maxWidth = Math.min(screenWidth - padding, 280)
+      maxHeight = screenHeight * 0.15
+    } else if (screenWidth <= 768) {
+      // Medium mobile screens
+      maxWidth = Math.min(screenWidth - padding, 320)
+      maxHeight = screenHeight * 0.2
+    } else {
+      // Larger mobile screens
+      maxWidth = Math.min(screenWidth - padding, 400)
+      maxHeight = screenHeight * 0.25
+    }
+    
+    const aspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT
+    
+    let width = maxWidth
+    let height = width / aspectRatio
+    
+    // Ensure height doesn't exceed max height
+    if (height > maxHeight) {
+      height = maxHeight
+      width = height * aspectRatio
+    }
+    
+    return { width: Math.floor(width), height: Math.floor(height) }
   }
   
   return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }
@@ -1733,21 +1756,21 @@ export default function PirateGame() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto p-2 sm:p-4 min-h-screen">
+    <div className="flex flex-col items-center gap-2 sm:gap-4 max-w-4xl mx-auto p-1 sm:p-4 min-h-screen">
       {/* Enhanced Game HUD */}
-      <Card className="w-full p-2 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
-        <div className="flex flex-col sm:flex-row justify-between items-center text-card-foreground gap-2 sm:gap-0">
-          <div className="flex flex-wrap gap-3 sm:gap-6 items-center justify-center sm:justify-start">
-            <span className="font-bold text-sm sm:text-lg">
+      <Card className="w-full p-1 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-center text-card-foreground gap-1 sm:gap-0">
+          <div className="flex flex-wrap gap-2 sm:gap-6 items-center justify-center sm:justify-start">
+            <span className="font-bold text-xs sm:text-lg">
               Score: <span className="text-amber-600">{gameState.score}</span>
             </span>
-            <span className="font-bold text-sm sm:text-lg">
+            <span className="font-bold text-xs sm:text-lg">
               Coins: <span className="text-yellow-500">{gameState.coins}</span>
             </span>
-            <span className="font-bold text-sm sm:text-lg">
+            <span className="font-bold text-xs sm:text-lg">
               Lives: <span className="text-red-500">{"❤️".repeat(gameState.lives)}</span>
             </span>
-            <span className="font-bold text-accent bg-amber-100 px-2 py-1 rounded">
+            <span className="font-bold text-accent bg-amber-100 px-1 sm:px-2 py-1 rounded text-xs sm:text-base">
               Bank: {playerProgress.totalCoins}
             </span>
           </div>
@@ -1788,14 +1811,15 @@ export default function PirateGame() {
       </Card>
 
       {/* Game Canvas */}
-      <div className="relative w-full flex justify-center">
+      <div className="relative w-full flex justify-center px-1 sm:px-2">
         <canvas
           ref={canvasRef}
           width={canvasSize.width}
           height={canvasSize.height}
-          className="game-canvas pixel-art rounded-lg shadow-2xl border-4 border-amber-200 max-w-full"
+          className="game-canvas pixel-art rounded-lg shadow-2xl border-2 sm:border-4 border-amber-200"
           style={{ 
             width: `${canvasSize.width}px`, 
+            height: `${canvasSize.height}px`,
             maxWidth: '100%'
           }}
           onTouchStart={handleTouchStart}
@@ -2071,27 +2095,27 @@ export default function PirateGame() {
       </div>
 
       {/* Enhanced Controls */}
-      <Card className="w-full p-2 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+      <Card className="w-full p-1 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
         <div className="text-center text-card-foreground">
-          <h3 className="font-bold mb-2 sm:mb-3 text-blue-800 text-sm sm:text-base">Controls & Status</h3>
-          <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-8 text-xs sm:text-sm mb-2">
-            <div className="bg-white p-2 rounded border">
+          <h3 className="font-bold mb-1 sm:mb-3 text-blue-800 text-xs sm:text-base">Controls & Status</h3>
+          <div className="flex flex-col sm:flex-row justify-center gap-1 sm:gap-8 text-xs mb-1 sm:mb-2">
+            <div className="bg-white p-1 sm:p-2 rounded border">
               <strong className="text-blue-600">PC:</strong> Space/↑ to Jump, ↓ to Slide
             </div>
-            <div className="bg-white p-2 rounded border">
+            <div className="bg-white p-1 sm:p-2 rounded border">
               <strong className="text-blue-600">Mobile:</strong> Tap upper half to Jump, lower half to Slide
             </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-2 text-xs">
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-2 text-xs">
             {gameState.shipBoosts.speedMultiplier > 1 && (
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded">Speed Boost Active!</span>
+              <span className="bg-green-100 text-green-800 px-1 sm:px-2 py-1 rounded">Speed Boost Active!</span>
             )}
             {gameState.isPlaying && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              <span className="bg-blue-100 text-blue-800 px-1 sm:px-2 py-1 rounded">
                 AI Level: {generateAILevelPattern(gameState.levelSeed + Math.floor(gameState.score / 500)).name}
               </span>
             )}
-            <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
+            <span className="bg-purple-100 text-purple-800 px-1 sm:px-2 py-1 rounded">
               Outfit: {playerProgress.pirateOutfits.find((o) => o.id === playerProgress.selectedOutfit)?.name}
             </span>
           </div>
