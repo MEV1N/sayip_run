@@ -151,6 +151,36 @@ const GRAVITY = 0.8
 const JUMP_FORCE = -15
 const GAME_SPEED = 4
 
+// Mobile detection and responsive constants
+const isMobile = () => {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
+const getResponsiveCanvasSize = () => {
+  if (typeof window === 'undefined') return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }
+  
+  const mobile = isMobile()
+  const screenWidth = window.innerWidth
+  const screenHeight = window.innerHeight
+  
+  if (mobile) {
+    // For mobile portrait mode, make canvas fit better
+    const maxWidth = Math.min(screenWidth - 32, 600) // 32px for padding
+    const aspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT
+    const height = Math.min(maxWidth / aspectRatio, screenHeight * 0.4)
+    const width = height * aspectRatio
+    
+    return { width, height }
+  }
+  
+  return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }
+}
+
+const getMobileSpeed = () => {
+  return isMobile() ? GAME_SPEED * 0.7 : GAME_SPEED // Slower on mobile for better control
+}
+
 const PIRATE_CATCHPHRASES = [
   "Arrr, me boots are soggy!",
   "Shiver me timbers, that was embarrassing!",
@@ -317,7 +347,7 @@ function generatePirateOutfits(): PirateOutfit[] {
 
 export default function PirateGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number>(0)
 
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress>(() => {
     if (typeof window !== "undefined") {
@@ -399,13 +429,14 @@ export default function PirateGame() {
 
   const [gameState, setGameState] = useState<GameState>(() => {
     const shipBoosts = calculateShipBoosts(playerProgress.shipUpgrades)
+    const baseSpeed = getMobileSpeed()
     return {
       isPlaying: false,
       isPaused: false,
       score: 0,
       coins: 0,
       lives: Math.max(1, 3 + shipBoosts.startingLives),
-      gameSpeed: GAME_SPEED * shipBoosts.speedMultiplier,
+      gameSpeed: baseSpeed * shipBoosts.speedMultiplier,
       shipBoosts,
       currentCatchphrase: generateAICatchphrase(),
       levelSeed: Math.floor(Math.random() * 10000),
@@ -449,6 +480,18 @@ export default function PirateGame() {
     }
   }, [playerProgress])
 
+  // Handle window resize for responsive canvas
+  useEffect(() => {
+    const handleResize = () => {
+      setCanvasSize(getResponsiveCanvasSize())
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener('resize', handleResize)
+      return () => window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
   const [player, setPlayer] = useState<Player>({
     x: 100,
     y: 300,
@@ -468,6 +511,8 @@ export default function PirateGame() {
   const [particles, setParticles] = useState<Particle[]>([])
   const [clouds, setClouds] = useState<Cloud[]>([])
   const [animationFrame, setAnimationFrame] = useState(0)
+  const [canvasSize, setCanvasSize] = useState(getResponsiveCanvasSize())
+  const [gameOverTimer, setGameOverTimer] = useState<NodeJS.Timeout | null>(null)
 
   // Game controls
   const jump = useCallback(() => {
@@ -557,7 +602,7 @@ export default function PirateGame() {
     }
 
     const baseObstacle = {
-      x: CANVAS_WIDTH + Math.random() * 200,
+      x: canvasSize.width + Math.random() * 200,
       y: selectedType === "gap" ? 332 : selectedType === "parrot" ? 200 + Math.random() * 50 : 300,
       width: selectedType === "gap" ? 60 : selectedType === "treasure-chest" ? 40 : 32,
       height: selectedType === "gap" ? 68 : selectedType === "treasure-chest" ? 28 : 32,
@@ -591,7 +636,7 @@ export default function PirateGame() {
   // Generate coins
   const generateCoin = useCallback(
     (): Coin => ({
-      x: CANVAS_WIDTH + Math.random() * 300,
+      x: canvasSize.width + Math.random() * 300,
       y: 200 + Math.random() * 100,
       width: 16,
       height: 16,
@@ -606,7 +651,7 @@ export default function PirateGame() {
     const type = types[Math.floor(Math.random() * types.length)]
 
     return {
-      x: CANVAS_WIDTH + Math.random() * 400,
+      x: canvasSize.width + Math.random() * 400,
       y: 220 + Math.random() * 80,
       width: 20,
       height: 20,
@@ -654,7 +699,7 @@ export default function PirateGame() {
     const initialClouds: Cloud[] = []
     for (let i = 0; i < 5; i++) {
       initialClouds.push({
-        x: Math.random() * CANVAS_WIDTH,
+        x: Math.random() * canvasSize.width,
         y: 50 + Math.random() * 100,
         speed: 0.5 + Math.random() * 1,
         size: 30 + Math.random() * 20,
@@ -1027,18 +1072,18 @@ export default function PirateGame() {
     ctx.fillRect(x + 26, y + 2, 2, 28)
   }, [])
 
-  const drawWaves = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
+  const drawWaves = useCallback((ctx: CanvasRenderingContext2D, frame: number, canvasWidth: number, canvasHeight: number) => {
     ctx.fillStyle = "#4682b4"
-    for (let x = 0; x < CANVAS_WIDTH + 50; x += 20) {
+    for (let x = 0; x < canvasWidth + 50; x += 20) {
       const waveHeight = Math.sin((x + frame * 2) * 0.02) * 8 + 5
-      ctx.fillRect(x, CANVAS_HEIGHT - waveHeight, 20, waveHeight)
+      ctx.fillRect(x, canvasHeight - waveHeight, 20, waveHeight)
     }
 
     // Wave foam
     ctx.fillStyle = "#ffffff"
-    for (let x = 0; x < CANVAS_WIDTH + 50; x += 30) {
+    for (let x = 0; x < canvasWidth + 50; x += 30) {
       const foamHeight = Math.sin((x + frame * 3) * 0.03) * 3 + 2
-      ctx.fillRect(x, CANVAS_HEIGHT - foamHeight, 15, 2)
+      ctx.fillRect(x, canvasHeight - foamHeight, 15, 2)
     }
   }, [])
 
@@ -1208,14 +1253,14 @@ export default function PirateGame() {
     setAnimationFrame((prev) => prev + 1)
 
     // Clear canvas
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+    ctx.clearRect(0, 0, canvasSize.width, canvasSize.height)
 
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT * 0.7)
+    const skyGradient = ctx.createLinearGradient(0, 0, 0, canvasSize.height * 0.7)
     skyGradient.addColorStop(0, "#87ceeb")
     skyGradient.addColorStop(0.5, "#98d8e8")
     skyGradient.addColorStop(1, "#4682b4")
     ctx.fillStyle = skyGradient
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT * 0.7)
+    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height * 0.7)
 
     // Draw clouds
     drawClouds(ctx)
@@ -1224,13 +1269,12 @@ export default function PirateGame() {
     setClouds((prev) =>
       prev.map((cloud) => ({
         ...cloud,
-        x: cloud.x - cloud.speed,
-        x: cloud.x < -cloud.size ? CANVAS_WIDTH + Math.random() * 200 : cloud.x - cloud.speed,
+        x: cloud.x < -cloud.size ? canvasSize.width + Math.random() * 200 : cloud.x - cloud.speed,
       })),
     )
 
     // Draw animated waves
-    drawWaves(ctx, animationFrame)
+    drawWaves(ctx, animationFrame, canvasSize.width, canvasSize.height)
 
     // Draw moving dock planks with enhanced detail
     ctx.fillStyle = "#8b4513"
@@ -1591,6 +1635,7 @@ export default function PirateGame() {
   const startGame = () => {
     const shipBoosts = calculateShipBoosts(playerProgress.shipUpgrades)
     const newLevelSeed = Math.floor(Math.random() * 10000)
+    const baseSpeed = getMobileSpeed()
 
     setGameState({
       isPlaying: true,
@@ -1598,7 +1643,7 @@ export default function PirateGame() {
       score: 0,
       coins: 0,
       lives: Math.max(1, 3 + shipBoosts.startingLives + shipBoosts.extraLives),
-      gameSpeed: GAME_SPEED * shipBoosts.speedMultiplier,
+      gameSpeed: baseSpeed * shipBoosts.speedMultiplier,
       shipBoosts,
       currentCatchphrase: generateAICatchphrase(),
       levelSeed: newLevelSeed,
@@ -1620,6 +1665,12 @@ export default function PirateGame() {
     setBackgroundX(0)
     setParticles([])
     setShowShipUpgrades(false)
+    
+    // Clear any existing game over timer
+    if (gameOverTimer) {
+      clearTimeout(gameOverTimer)
+      setGameOverTimer(null)
+    }
   }
 
   const handleGameOver = useCallback(() => {
@@ -1654,28 +1705,46 @@ export default function PirateGame() {
 
   useEffect(() => {
     if (gameState.lives <= 1 && gameState.isPlaying) {
-      setGameState((prev) => ({ ...prev, isPlaying: false }))
-      handleGameOver()
+      // Clear any existing timer
+      if (gameOverTimer) {
+        clearTimeout(gameOverTimer)
+      }
+      
+      // Add 2-second delay before showing game over
+      const timer = setTimeout(() => {
+        setGameState((prev) => ({ ...prev, isPlaying: false }))
+        handleGameOver()
+        setGameOverTimer(null)
+      }, 2000)
+      
+      setGameOverTimer(timer)
     }
-  }, [gameState.lives, gameState.isPlaying, handleGameOver])
+    
+    // Cleanup timer on unmount
+    return () => {
+      if (gameOverTimer) {
+        clearTimeout(gameOverTimer)
+      }
+    }
+  }, [gameState.lives, gameState.isPlaying, handleGameOver, gameOverTimer])
 
   const pauseGame = () => {
     setGameState((prev) => ({ ...prev, isPaused: !prev.isPaused }))
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto p-4">
+    <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto p-2 sm:p-4 min-h-screen">
       {/* Enhanced Game HUD */}
-      <Card className="w-full p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
-        <div className="flex justify-between items-center text-card-foreground">
-          <div className="flex gap-6 items-center">
-            <span className="font-bold text-lg">
+      <Card className="w-full p-2 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-center text-card-foreground gap-2 sm:gap-0">
+          <div className="flex flex-wrap gap-3 sm:gap-6 items-center justify-center sm:justify-start">
+            <span className="font-bold text-sm sm:text-lg">
               Score: <span className="text-amber-600">{gameState.score}</span>
             </span>
-            <span className="font-bold text-lg">
+            <span className="font-bold text-sm sm:text-lg">
               Coins: <span className="text-yellow-500">{gameState.coins}</span>
             </span>
-            <span className="font-bold text-lg">
+            <span className="font-bold text-sm sm:text-lg">
               Lives: <span className="text-red-500">{"❤️".repeat(gameState.lives)}</span>
             </span>
             <span className="font-bold text-accent bg-amber-100 px-2 py-1 rounded">
@@ -1719,12 +1788,16 @@ export default function PirateGame() {
       </Card>
 
       {/* Game Canvas */}
-      <div className="relative">
+      <div className="relative w-full flex justify-center">
         <canvas
           ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className="game-canvas pixel-art rounded-lg shadow-2xl border-4 border-amber-200"
+          width={canvasSize.width}
+          height={canvasSize.height}
+          className="game-canvas pixel-art rounded-lg shadow-2xl border-4 border-amber-200 max-w-full"
+          style={{ 
+            width: `${canvasSize.width}px`, 
+            maxWidth: '100%'
+          }}
           onTouchStart={handleTouchStart}
           onClick={gameState.isPlaying ? undefined : startGame}
         />
@@ -1998,10 +2071,10 @@ export default function PirateGame() {
       </div>
 
       {/* Enhanced Controls */}
-      <Card className="w-full p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+      <Card className="w-full p-2 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
         <div className="text-center text-card-foreground">
-          <h3 className="font-bold mb-3 text-blue-800">Controls & Status</h3>
-          <div className="flex justify-center gap-8 text-sm mb-2">
+          <h3 className="font-bold mb-2 sm:mb-3 text-blue-800 text-sm sm:text-base">Controls & Status</h3>
+          <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-8 text-xs sm:text-sm mb-2">
             <div className="bg-white p-2 rounded border">
               <strong className="text-blue-600">PC:</strong> Space/↑ to Jump, ↓ to Slide
             </div>
@@ -2009,7 +2082,7 @@ export default function PirateGame() {
               <strong className="text-blue-600">Mobile:</strong> Tap upper half to Jump, lower half to Slide
             </div>
           </div>
-          <div className="flex justify-center gap-4 text-xs">
+          <div className="flex flex-wrap justify-center gap-2 text-xs">
             {gameState.shipBoosts.speedMultiplier > 1 && (
               <span className="bg-green-100 text-green-800 px-2 py-1 rounded">Speed Boost Active!</span>
             )}
