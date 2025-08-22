@@ -325,6 +325,22 @@ button:disabled {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
+/* Backdrop blur utility */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Rounded button utilities */
+.rounded-full {
+  border-radius: 9999px;
+}
+
+/* Transparency utilities */
+.bg-black\/30 { background-color: rgba(0, 0, 0, 0.3); }
+.bg-black\/50 { background-color: rgba(0, 0, 0, 0.5); }
+.border-black\/20 { border-color: rgba(0, 0, 0, 0.2); }
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .game-canvas {
@@ -385,6 +401,28 @@ button:disabled {
   
   .md\\:grid-cols-2 {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Landscape mode optimizations for mobile controls */
+@media (max-width: 768px) and (orientation: landscape) {
+  .game-canvas {
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 120px) !important;
+    width: auto !important;
+    height: auto !important;
+  }
+  
+  /* Make controls smaller in landscape */
+  .absolute.bottom-4 button {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 18px !important;
+  }
+  
+  /* Adjust control positioning for landscape */
+  .absolute.bottom-4 {
+    bottom: 8px !important;
   }
 }
 

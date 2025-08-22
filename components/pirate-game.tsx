@@ -1852,6 +1852,51 @@ export default function PirateGame() {
     setShowLeaderboard(false)
   }
 
+  // Auto fullscreen and landscape for mobile
+  useEffect(() => {
+    const enableMobileFullscreen = async () => {
+      if (isMobile() && typeof window !== 'undefined') {
+        try {
+          // Request fullscreen
+          const element = document.documentElement
+          if (element.requestFullscreen) {
+            await element.requestFullscreen()
+          } else if ((element as any).webkitRequestFullscreen) {
+            await (element as any).webkitRequestFullscreen()
+          } else if ((element as any).msRequestFullscreen) {
+            await (element as any).msRequestFullscreen()
+          }
+          
+          // Request landscape orientation
+          if ((screen as any).orientation && (screen as any).orientation.lock) {
+            try {
+              await (screen as any).orientation.lock('landscape')
+            } catch (orientationError) {
+              console.log('Orientation lock not supported:', orientationError)
+            }
+          }
+          
+          setIsFullscreen(true)
+        } catch (fullscreenError) {
+          console.log('Fullscreen not supported:', fullscreenError)
+        }
+      }
+    }
+
+    // Auto-enable on mobile load with user interaction simulation
+    if (isMobile()) {
+      // Wait for user interaction, then enable
+      const handleFirstTouch = () => {
+        enableMobileFullscreen()
+        document.removeEventListener('touchstart', handleFirstTouch)
+        document.removeEventListener('click', handleFirstTouch)
+      }
+      
+      document.addEventListener('touchstart', handleFirstTouch, { once: true })
+      document.addEventListener('click', handleFirstTouch, { once: true })
+    }
+  }, [])
+
   // Fullscreen and orientation functions
   const enterFullscreen = async () => {
     if (typeof window !== 'undefined' && isMobile()) {
@@ -1981,38 +2026,36 @@ export default function PirateGame() {
 
         {/* Mobile Arrow Controls */}
         {isMobile() && gameState.isPlaying && (
-          <div className="absolute bottom-20 left-4 right-4 flex justify-between pointer-events-none">
-            {/* Left side controls */}
-            <div className="flex flex-col gap-2 pointer-events-auto">
-              <div className="flex gap-2">
-                {/* Left arrow */}
-                <button
-                  className="w-12 h-12 bg-blue-600/80 text-white rounded-lg border-2 border-blue-300 shadow-lg active:bg-blue-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
-                  onTouchStart={() => setKeys(prev => ({ ...prev, left: true }))}
-                  onTouchEnd={() => setKeys(prev => ({ ...prev, left: false }))}
-                  onMouseDown={() => setKeys(prev => ({ ...prev, left: true }))}
-                  onMouseUp={() => setKeys(prev => ({ ...prev, left: false }))}
-                >
-                  ←
-                </button>
-                {/* Right arrow */}
-                <button
-                  className="w-12 h-12 bg-blue-600/80 text-white rounded-lg border-2 border-blue-300 shadow-lg active:bg-blue-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
-                  onTouchStart={() => setKeys(prev => ({ ...prev, right: true }))}
-                  onTouchEnd={() => setKeys(prev => ({ ...prev, right: false }))}
-                  onMouseDown={() => setKeys(prev => ({ ...prev, right: true }))}
-                  onMouseUp={() => setKeys(prev => ({ ...prev, right: false }))}
-                >
-                  →
-                </button>
-              </div>
+          <div className="absolute bottom-4 left-4 right-4 flex justify-between pointer-events-none">
+            {/* Left side controls - Left/Right arrows */}
+            <div className="flex gap-3 pointer-events-auto">
+              {/* Left arrow */}
+              <button
+                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
+                onTouchStart={() => setKeys(prev => ({ ...prev, left: true }))}
+                onTouchEnd={() => setKeys(prev => ({ ...prev, left: false }))}
+                onMouseDown={() => setKeys(prev => ({ ...prev, left: true }))}
+                onMouseUp={() => setKeys(prev => ({ ...prev, left: false }))}
+              >
+                ←
+              </button>
+              {/* Right arrow */}
+              <button
+                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
+                onTouchStart={() => setKeys(prev => ({ ...prev, right: true }))}
+                onTouchEnd={() => setKeys(prev => ({ ...prev, right: false }))}
+                onMouseDown={() => setKeys(prev => ({ ...prev, right: true }))}
+                onMouseUp={() => setKeys(prev => ({ ...prev, right: false }))}
+              >
+                →
+              </button>
             </div>
             
-            {/* Right side controls */}
-            <div className="flex flex-col gap-2 pointer-events-auto">
+            {/* Right side controls - Jump and Slide */}
+            <div className="flex flex-col gap-3 pointer-events-auto">
               {/* Jump button */}
               <button
-                className="w-12 h-12 bg-green-600/80 text-white rounded-lg border-2 border-green-300 shadow-lg active:bg-green-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
+                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
                 onTouchStart={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
                 onTouchEnd={() => setKeys(prev => ({ ...prev, up: false }))}
                 onMouseDown={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
@@ -2022,7 +2065,7 @@ export default function PirateGame() {
               </button>
               {/* Slide button */}
               <button
-                className="w-12 h-12 bg-red-600/80 text-white rounded-lg border-2 border-red-300 shadow-lg active:bg-red-700 active:scale-95 transition-all flex items-center justify-center text-xl font-bold"
+                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
                 onTouchStart={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
                 onTouchEnd={() => setKeys(prev => ({ ...prev, down: false }))}
                 onMouseDown={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
