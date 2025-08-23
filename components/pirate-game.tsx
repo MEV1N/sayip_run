@@ -148,7 +148,7 @@ interface Cloud {
 const CANVAS_WIDTH = 800
 const CANVAS_HEIGHT = 400
 const GRAVITY = 0.8
-const JUMP_FORCE = -15
+const JUMP_FORCE = -10
 const GAME_SPEED = 4
 
 // Mobile detection and responsive constants
@@ -739,14 +739,14 @@ export default function PirateGame() {
     (): Coin => {
       const groundY = 316  // Ground level for coins
       
-      // Various coin heights for endless gameplay
+      // Coins stick to ground only for easier gameplay
       const coinPositions = [
-        groundY - 16,  // On ground (most common)
-        groundY - 16,  // More ground coins
-        groundY - 56,  // On low platform
-        groundY - 96,  // On medium platform
-        groundY - 136, // On high platform
-        groundY - 16,  // Even more ground coins for endless gameplay
+        groundY - 16,  // On ground (ground level)
+        groundY - 16,  // On ground (ground level)
+        groundY - 16,  // On ground (ground level)
+        groundY - 16,  // On ground (ground level)
+        groundY - 16,  // On ground (ground level)
+        groundY - 16,  // On ground (ground level)
       ]
       
       const coinY = coinPositions[Math.floor(Math.random() * coinPositions.length)]
@@ -790,25 +790,27 @@ export default function PirateGame() {
   const checkCoinMagnet = useCallback(
     (coin: Coin) => {
       const magnetRange = 50 + gameState.shipBoosts.coinMagnetRange
+      const coinScreenX = coin.x + platformOffset // Convert to screen coordinates for magnet check
       const distance = Math.sqrt(
-        Math.pow(player.x + player.width / 2 - (coin.x + coin.width / 2), 2) +
+        Math.pow(player.x + player.width / 2 - (coinScreenX + coin.width / 2), 2) +
           Math.pow(player.y + player.height / 2 - (coin.y + coin.height / 2), 2),
       )
 
       if (distance < magnetRange && distance > 20) {
         const pullStrength = 0.3
-        const dx = player.x + player.width / 2 - (coin.x + coin.width / 2)
+        const dx = player.x + player.width / 2 - (coinScreenX + coin.width / 2)
         const dy = player.y + player.height / 2 - (coin.y + coin.height / 2)
 
+        // Return world coordinates (subtract platformOffset to convert back)
         return {
-          x: coin.x + dx * pullStrength * 0.1,
+          x: coin.x + (dx * pullStrength * 0.1) - (platformOffset * 0.001), // Slight conversion adjustment
           y: coin.y + dy * pullStrength * 0.1,
         }
       }
 
       return { x: coin.x, y: coin.y }
     },
-    [player, gameState.shipBoosts.coinMagnetRange],
+    [player, gameState.shipBoosts.coinMagnetRange, platformOffset],
   )
 
   // Initialize clouds
@@ -1418,35 +1420,37 @@ export default function PirateGame() {
       ctx.strokeRect(x, 332, 48, 68)
     }
 
-    // Update player physics with platform collision detection
+    // Update player physics with Mario-style mechanics
     setPlayer((prev) => {
       let newX = prev.x
       let newY = prev.y + prev.velocityY
       let newVelocityY = prev.velocityY + GRAVITY
       let newIsJumping = prev.isJumping
 
-      // Manual horizontal movement
-      const moveSpeed = 5
-      if (keys.left && newX > 0) {
-        newX -= moveSpeed
-        // Update platform offset when moving left (slower scroll)
-        setPlatformOffset(prevOffset => prevOffset + moveSpeed * 0.2)
+      // Mario-style horizontal movement - player stays centered, world moves
+      const moveSpeed = 3
+      if (keys.left) {
+        // Move world right when going left (but keep player position)
+        setPlatformOffset(prevOffset => prevOffset + moveSpeed)
       }
-      if (keys.right && newX < canvasSize.width - prev.width) {
-        newX += moveSpeed
-        // Update platform offset when moving right (slower scroll)
-        setPlatformOffset(prevOffset => prevOffset - moveSpeed * 0.2)
+      if (keys.right) {
+        // Move world left when going right (but keep player position)
+        setPlatformOffset(prevOffset => prevOffset - moveSpeed)
       }
 
-      // Check collision with obstacles for landing
+      // Keep player roughly centered on screen
+      newX = canvasSize.width * 0.3 // Fixed position like Mario
+
+      // Check collision with obstacles for landing (Mario-style platform collision)
       let onPlatform = false
       obstacles.forEach((obstacle) => {
         if (obstacle.type === "barrel" || obstacle.type === "treasure-chest") {
           // Check if player is landing on top of obstacle
-          if (newX + prev.width > obstacle.x && 
-              newX < obstacle.x + obstacle.width &&
+          const obstacleScreenX = obstacle.x + platformOffset
+          if (newX + prev.width > obstacleScreenX && 
+              newX < obstacleScreenX + obstacle.width &&
               newY + prev.height >= obstacle.y &&
-              newY + prev.height <= obstacle.y + 10 && // Small tolerance for landing
+              newY + prev.height <= obstacle.y + 15 && // Generous landing tolerance
               prev.velocityY >= 0) { // Only when falling/landing
             newY = obstacle.y - prev.height
             newVelocityY = 0
@@ -1475,88 +1479,87 @@ export default function PirateGame() {
     // Draw enhanced player
     drawPixelPirate(ctx, player.x, player.y, player.width, player.height, player.isSliding)
 
-    // Update obstacles - endless generation with slower movement
+    // Update obstacles - Mario-style side-scrolling with world movement
     setObstacles((prev) => {
       const updated = prev
         .map((obstacle) => {
           const newObstacle = { ...obstacle }
 
           if (obstacle.type === "crab") {
-            // Red crabs move toward the player but slower
-            const dx = player.x - obstacle.x
+            // Crabs move toward player but in world coordinates
+            const playerWorldX = player.x - platformOffset
+            const dx = playerWorldX - obstacle.x
             const dy = player.y - obstacle.y
             const distance = Math.sqrt(dx * dx + dy * dy)
             
-            if (distance > 5) { // Prevent jittery movement when very close
-              const speed = 1 // Slower crab movement speed
+            if (distance > 5 && distance < 200) { // Only move if player is nearby
+              const speed = 0.5 // Much slower for Mario-style gameplay
               newObstacle.x += (dx / distance) * speed
-              newObstacle.y += (dy / distance) * speed * 0.2 // Much slower vertical movement
+              // No vertical movement for ground-based enemies
             }
-          } else {
-            // All other obstacles move much slower with platform scrolling
-            newObstacle.x += platformOffset * 0.05 // Much slower platform movement
           }
+          // Other obstacles stay in their world positions
 
           return newObstacle
         })
         .filter((obstacle) => {
-          // Keep obstacles within reasonable bounds for endless gameplay
-          if (obstacle.type === "crab") {
-            const dx = player.x - obstacle.x
-            const dy = player.y - obstacle.y
-            const distance = Math.sqrt(dx * dx + dy * dy)
-            return distance < canvasSize.width * 2 // Keep crabs within 2 screen widths
-          }
-          // Keep static obstacles if they're not too far from player
-          return Math.abs(obstacle.x - player.x) < canvasSize.width * 1.5
+          // Keep obstacles within world bounds relative to player
+          const playerWorldX = player.x - platformOffset
+          return Math.abs(obstacle.x - playerWorldX) < canvasSize.width * 2
         })
 
-      // Endless obstacle generation - spawn ahead of player
-      const playerRegion = player.x + canvasSize.width * 0.5 // Spawn ahead of player
-      const hasObstaclesAhead = updated.some(obs => obs.x > playerRegion && obs.x < playerRegion + 400)
+      // Mario-style obstacle generation - create world ahead of player
+      const playerWorldX = player.x - platformOffset
+      const spawnX = playerWorldX + canvasSize.width
+      const hasObstaclesAhead = updated.some(obs => obs.x > spawnX - 200 && obs.x < spawnX + 200)
       
-      if (!hasObstaclesAhead || Math.random() < 0.03) { // Higher spawn rate for endless gameplay
+      if (!hasObstaclesAhead && Math.random() < 0.02) {
         const newObstacle = generateObstacle()
-        newObstacle.x = playerRegion + Math.random() * 300 + 200 // Spawn ahead of player
+        newObstacle.x = spawnX + Math.random() * 300
         updated.push(newObstacle)
       }
 
       return updated
     })
 
-    // Draw enhanced obstacles
+    // Draw enhanced obstacles with Mario-style world coordinates
     obstacles.forEach((obstacle) => {
-      switch (obstacle.type) {
-        case "crab":
-          drawPixelCrab(ctx, obstacle.x, obstacle.y, animationFrame)
-          break
-        case "moonwalk-crab":
-          drawMoonwalkCrab(ctx, obstacle.x, obstacle.y, animationFrame)
-          break
-        case "parrot":
-          drawParrot(ctx, obstacle.x, obstacle.y, animationFrame, obstacle)
-          break
-        case "barrel":
-          drawPixelBarrel(ctx, obstacle.x, obstacle.y)
-          break
-        case "treasure-chest":
-          drawTreasureChest(ctx, obstacle.x, obstacle.y, animationFrame)
-          break
-        case "gap":
-          // Enhanced water gap with bubbles
-          ctx.fillStyle = "#4682b4"
-          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+      const screenX = obstacle.x + platformOffset // Convert world coords to screen coords
+      
+      // Only draw obstacles that are visible on screen
+      if (screenX > -obstacle.width && screenX < canvasSize.width + obstacle.width) {
+        switch (obstacle.type) {
+          case "crab":
+            drawPixelCrab(ctx, screenX, obstacle.y, animationFrame)
+            break
+          case "moonwalk-crab":
+            drawMoonwalkCrab(ctx, screenX, obstacle.y, animationFrame)
+            break
+          case "parrot":
+            drawParrot(ctx, screenX, obstacle.y, animationFrame, obstacle)
+            break
+          case "barrel":
+            drawPixelBarrel(ctx, screenX, obstacle.y)
+            break
+          case "treasure-chest":
+            drawTreasureChest(ctx, screenX, obstacle.y, animationFrame)
+            break
+          case "gap":
+            // Enhanced water gap with bubbles
+            ctx.fillStyle = "#4682b4"
+            ctx.fillRect(screenX, obstacle.y, obstacle.width, obstacle.height)
 
-          // Bubbles
-          for (let i = 0; i < 3; i++) {
-            const bubbleX = obstacle.x + Math.random() * obstacle.width
-            const bubbleY = obstacle.y + Math.sin(animationFrame * 0.1 + i) * 10 + 20
-            ctx.fillStyle = "#87ceeb"
-            ctx.beginPath()
-            ctx.arc(bubbleX, bubbleY, 2 + Math.sin(animationFrame * 0.05 + i), 0, Math.PI * 2)
-            ctx.fill()
-          }
-          break
+            // Bubbles
+            for (let i = 0; i < 3; i++) {
+              const bubbleX = screenX + Math.random() * obstacle.width
+              const bubbleY = obstacle.y + Math.sin(animationFrame * 0.1 + i) * 10 + 20
+              ctx.fillStyle = "#87ceeb"
+              ctx.beginPath()
+              ctx.arc(bubbleX, bubbleY, 2 + Math.sin(animationFrame * 0.05 + i), 0, Math.PI * 2)
+              ctx.fill()
+            }
+            break
+        }
       }
     })
 
@@ -1584,25 +1587,33 @@ export default function PirateGame() {
       const updated = prev
         .map((powerUp) => ({
           ...powerUp,
-          x: powerUp.x + platformOffset * 0.03, // Power-ups move slower with platform
+          // Power-ups stay in world coordinates
         }))
-        .filter((powerUp) => !powerUp.collected && Math.abs(powerUp.x - player.x) < canvasSize.width * 1.5) // Keep power-ups within bounds
+        .filter((powerUp) => {
+          if (powerUp.collected) return false
+          const playerWorldX = player.x - platformOffset
+          return Math.abs(powerUp.x - playerWorldX) < canvasSize.width * 2
+        })
 
-      // Endless power-up generation
-      const powerUpChance = isMobile() ? 0.003 : 0.002  // Lower frequency for balance
+      // Mario-style power-up generation
+      const playerWorldX = player.x - platformOffset
+      const powerUpChance = isMobile() ? 0.001 : 0.0008  // Lower frequency for balance
       if (Math.random() < powerUpChance) {
         const newPowerUp = generatePowerUp()
-        newPowerUp.x = player.x + canvasSize.width * 0.5 + Math.random() * 300 + 100 // Spawn ahead of player
+        newPowerUp.x = playerWorldX + canvasSize.width + Math.random() * 300
         updated.push(newPowerUp)
       }
 
       return updated
     })
 
-    // Draw power-ups
+    // Draw power-ups with world coordinates
     powerUps.forEach((powerUp) => {
       if (!powerUp.collected) {
-        drawPowerUp(ctx, powerUp, animationFrame)
+        const screenX = powerUp.x + platformOffset
+        if (screenX > -powerUp.width && screenX < canvasSize.width + powerUp.width) {
+          drawPowerUp(ctx, { ...powerUp, x: screenX }, animationFrame)
+        }
       }
     })
 
@@ -1612,29 +1623,37 @@ export default function PirateGame() {
           const magnetPos = checkCoinMagnet(coin)
           return {
             ...coin,
-            x: magnetPos.x + platformOffset * 0.03, // Coins move slower with platform
+            x: magnetPos.x, // Coins stay in world coordinates
             y: magnetPos.y,
           }
         })
-        .filter((coin) => !coin.collected && Math.abs(coin.x - player.x) < canvasSize.width * 1.5) // Keep coins within reasonable bounds
+        .filter((coin) => {
+          if (coin.collected) return false
+          const playerWorldX = player.x - platformOffset
+          return Math.abs(coin.x - playerWorldX) < canvasSize.width * 2 // Keep coins within world bounds
+        })
 
-      // Endless coin generation around player
-      const playerRegion = player.x + canvasSize.width * 0.5
-      const hasCoinsAhead = updated.some(coin => coin.x > playerRegion && coin.x < playerRegion + 300)
+      // Mario-style coin generation in world coordinates
+      const playerWorldX = player.x - platformOffset
+      const spawnX = playerWorldX + canvasSize.width
+      const hasCoinsAhead = updated.some(coin => coin.x > spawnX - 200 && coin.x < spawnX + 300)
       
-      if (!hasCoinsAhead || Math.random() < 0.02) { // Spawn coins ahead
+      if (!hasCoinsAhead && Math.random() < 0.03) { // Higher spawn rate
         const newCoin = generateCoin()
-        newCoin.x = playerRegion + Math.random() * 400 + 100 // Spawn ahead of player
+        newCoin.x = spawnX + Math.random() * 400
         updated.push(newCoin)
       }
 
       return updated
     })
 
-    // Draw enhanced coins
+    // Draw enhanced coins with world coordinates
     coins.forEach((coin) => {
       if (!coin.collected) {
-        drawEnhancedCoin(ctx, coin.x, coin.y, animationFrame)
+        const screenX = coin.x + platformOffset // Convert world coords to screen coords
+        if (screenX > -coin.width && screenX < canvasSize.width + coin.width) {
+          drawEnhancedCoin(ctx, screenX, coin.y, animationFrame)
+        }
       }
     })
 
@@ -1661,16 +1680,19 @@ export default function PirateGame() {
       ctx.fillRect(particle.x, particle.y, particle.size, particle.size)
     })
 
-    // Enhanced collision detection with enemy stomping
+    // Enhanced collision detection with Mario-style world coordinates
     obstacles.forEach((obstacle) => {
-      if (checkCollision(player, obstacle)) {
+      const screenX = obstacle.x + platformOffset
+      const screenObstacle = { ...obstacle, x: screenX }
+      
+      if (checkCollision(player, screenObstacle)) {
         if (obstacle.type === "gap" && player.y + player.height >= obstacle.y) {
           // Fell in water
           addParticles(player.x + player.width / 2, player.y + player.height, "#4682b4", 10)
           setGameState((prev) => ({ ...prev, lives: Math.max(1, prev.lives - 1) }))
         } else if (obstacle.type === "treasure-chest") {
           // Treasure chest gives bonus coins
-          addParticles(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2, "#ffd700", 15)
+          addParticles(screenX + obstacle.width / 2, obstacle.y + obstacle.height / 2, "#ffd700", 15)
           setGameState((prev) => ({ ...prev, coins: prev.coins + 5, score: prev.score + 50 }))
           // Remove the treasure chest
           setObstacles((prev) => prev.filter((obs) => obs !== obstacle))
@@ -1679,13 +1701,12 @@ export default function PirateGame() {
           const playerBottom = player.y + player.height
           const playerTop = player.y
           const enemyTop = obstacle.y
-          const enemyBottom = obstacle.y + obstacle.height
           
-          if (playerBottom <= enemyTop + 10 && // Player's bottom is near enemy's top
+          if (playerBottom <= enemyTop + 15 && // Player's bottom is near enemy's top (generous)
               player.velocityY >= 0 && // Player is falling/landing
               playerTop < enemyTop) { // Player is above enemy
             // Stomp enemy - destroy it and bounce player
-            addParticles(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2, "#ff6b6b", 12)
+            addParticles(screenX + obstacle.width / 2, obstacle.y + obstacle.height / 2, "#ff6b6b", 12)
             setGameState((prev) => ({ 
               ...prev, 
               score: prev.score + 100,
@@ -1693,10 +1714,10 @@ export default function PirateGame() {
             }))
             // Remove the enemy
             setObstacles((prev) => prev.filter((obs) => obs !== obstacle))
-            // Give player a small bounce
+            // Give player a Mario-style bounce
             setPlayer((prev) => ({
               ...prev,
-              velocityY: -8, // Small bounce
+              velocityY: -12, // Strong bounce like Mario
               isJumping: true
             }))
           } else {
@@ -1710,7 +1731,7 @@ export default function PirateGame() {
           const playerTop = player.y
           const barrelTop = obstacle.y
           
-          if (playerBottom <= barrelTop + 5 && player.velocityY >= 0 && playerTop < barrelTop) {
+          if (playerBottom <= barrelTop + 10 && player.velocityY >= 0 && playerTop < barrelTop) {
             // Landing on barrel is safe (already handled in player physics)
           } else {
             // Side collision with barrel - take damage
@@ -1725,28 +1746,55 @@ export default function PirateGame() {
       }
     })
 
-    // Check projectile collisions
-    projectiles.forEach((projectile) => {
-      if (checkCollision(player, projectile)) {
-        addParticles(projectile.x + projectile.width / 2, projectile.y + projectile.height / 2, "#ffff00", 6)
-        setGameState((prev) => ({ ...prev, lives: Math.max(1, prev.lives - 1) }))
-        setProjectiles((prev) => prev.filter((proj) => proj !== projectile))
-      }
-    })
-
-    // Check coin collection with particle effects
+    // Check coin collection with world coordinates
     setCoins((prev) =>
       prev.map((coin) => {
-        if (!coin.collected && checkCollision(player, coin)) {
-          addParticles(coin.x + coin.width / 2, coin.y + coin.height / 2, "#ffd700", 8)
-          setGameState((prevState) => ({
-            ...prevState,
-            coins: prevState.coins + 1,
-            score: prevState.score + 10,
-          }))
-          return { ...coin, collected: true }
+        if (!coin.collected) {
+          const screenX = coin.x + platformOffset
+          const screenCoin = { ...coin, x: screenX }
+          if (checkCollision(player, screenCoin)) {
+            addParticles(screenX + coin.width / 2, coin.y + coin.height / 2, "#ffd700", 8)
+            setGameState((prevState) => ({
+              ...prevState,
+              coins: prevState.coins + 1,
+              score: prevState.score + 10,
+            }))
+            return { ...coin, collected: true }
+          }
         }
         return coin
+      }),
+    )
+
+    // Check power-up collection with world coordinates
+    setPowerUps((prev) =>
+      prev.map((powerUp) => {
+        if (!powerUp.collected) {
+          const screenX = powerUp.x + platformOffset
+          const screenPowerUp = { ...powerUp, x: screenX }
+          if (checkCollision(player, screenPowerUp)) {
+            addParticles(screenX + powerUp.width / 2, powerUp.y + powerUp.height / 2, "#ffffff", 12)
+
+            switch (powerUp.type) {
+              case "speed-boost":
+                setGameState((prevState) => ({ ...prevState, score: prevState.score + 25 }))
+                break
+              case "coin-magnet":
+                setGameState((prevState) => ({ ...prevState, score: prevState.score + 25 }))
+                break
+              case "extra-life":
+                setGameState((prevState) => ({
+                  ...prevState,
+                  lives: Math.min(prevState.lives + 1, 5),
+                  score: prevState.score + 50,
+                }))
+                break
+            }
+
+            return { ...powerUp, collected: true }
+          }
+        }
+        return powerUp
       }),
     )
 
@@ -1856,7 +1904,7 @@ export default function PirateGame() {
       levelSeed: newLevelSeed,
     })
     setPlayer({
-      x: 100,
+      x: canvasSize.width * 0.3, // Fixed Mario-style position
       y: 300,
       width: 32,
       height: 32,
@@ -1873,20 +1921,20 @@ export default function PirateGame() {
     setPlatformOffset(0)
     setParticles([])
     
-    // Generate initial scattered coins for endless gameplay
+    // Generate initial Mario-style world content
     const initialCoins: Coin[] = []
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 15; i++) {
       const coin = generateCoin()
-      coin.x = 200 + i * 100 + Math.random() * 50 // Spread coins ahead of player
+      coin.x = 300 + i * 80 + Math.random() * 40 // Spread coins in world space
       initialCoins.push(coin)
     }
     setCoins(initialCoins)
     
-    // Generate initial obstacles for endless gameplay
+    // Generate initial obstacles in world space
     const initialObstacles: Obstacle[] = []
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       const obstacle = generateObstacle()
-      obstacle.x = 300 + i * 200 + Math.random() * 100 // Spread obstacles ahead
+      obstacle.x = 400 + i * 150 + Math.random() * 100 // Spread obstacles in world space
       initialObstacles.push(obstacle)
     }
     setObstacles(initialObstacles)
