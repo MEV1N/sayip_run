@@ -543,6 +543,48 @@ export default function PirateGame() {
     }
   }, [])
 
+  // Handle touch/mouse event cleanup to prevent stuck movement
+  useEffect(() => {
+    const resetAllKeys = () => {
+      setKeys({ left: false, right: false, up: false, down: false })
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        resetAllKeys()
+      }
+    }
+
+    const handleTouchCancel = () => {
+      resetAllKeys()
+    }
+
+    const handleMouseUp = () => {
+      resetAllKeys()
+    }
+
+    if (typeof window !== "undefined") {
+      // Reset keys when losing focus or visibility
+      window.addEventListener('blur', resetAllKeys)
+      window.addEventListener('focus', resetAllKeys)
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      
+      // Global touch/mouse event cleanup
+      document.addEventListener('touchcancel', handleTouchCancel, { passive: true })
+      document.addEventListener('touchend', handleTouchCancel, { passive: true })
+      document.addEventListener('mouseup', handleMouseUp)
+      
+      return () => {
+        window.removeEventListener('blur', resetAllKeys)
+        window.removeEventListener('focus', resetAllKeys)
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        document.removeEventListener('touchcancel', handleTouchCancel)
+        document.removeEventListener('touchend', handleTouchCancel)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [])
+
   const [player, setPlayer] = useState<Player>({
     x: 100,
     y: 300,
@@ -2224,10 +2266,12 @@ export default function PirateGame() {
               <button
                 className="w-20 h-20 bg-black/40 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-black/60 active:scale-95 transition-all flex items-center justify-center text-3xl font-bold backdrop-blur-sm"
                 style={{ touchAction: 'manipulation' }}
-                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, left: true })); }}
-                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, left: false })); }}
+                onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, left: true })); }}
+                onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, left: false })); }}
+                onTouchCancel={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, left: false })); }}
                 onMouseDown={() => setKeys(prev => ({ ...prev, left: true }))}
                 onMouseUp={() => setKeys(prev => ({ ...prev, left: false }))}
+                onMouseLeave={() => setKeys(prev => ({ ...prev, left: false }))}
               >
                 ←
               </button>
@@ -2235,10 +2279,12 @@ export default function PirateGame() {
               <button
                 className="w-20 h-20 bg-black/40 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-black/60 active:scale-95 transition-all flex items-center justify-center text-3xl font-bold backdrop-blur-sm"
                 style={{ touchAction: 'manipulation' }}
-                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, right: true })); }}
-                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, right: false })); }}
+                onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, right: true })); }}
+                onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, right: false })); }}
+                onTouchCancel={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, right: false })); }}
                 onMouseDown={() => setKeys(prev => ({ ...prev, right: true }))}
                 onMouseUp={() => setKeys(prev => ({ ...prev, right: false }))}
+                onMouseLeave={() => setKeys(prev => ({ ...prev, right: false }))}
               >
                 →
               </button>
@@ -2250,10 +2296,12 @@ export default function PirateGame() {
               <button
                 className="w-20 h-20 bg-green-600/80 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-green-700 active:scale-95 transition-all flex items-center justify-center text-lg font-bold backdrop-blur-sm"
                 style={{ touchAction: 'manipulation' }}
-                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, up: true })); jump(); }}
-                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, up: false })); }}
+                onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, up: true })); jump(); }}
+                onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, up: false })); }}
+                onTouchCancel={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, up: false })); }}
                 onMouseDown={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
                 onMouseUp={() => setKeys(prev => ({ ...prev, up: false }))}
+                onMouseLeave={() => setKeys(prev => ({ ...prev, up: false }))}
               >
                 A
               </button>
@@ -2261,10 +2309,12 @@ export default function PirateGame() {
               <button
                 className="w-20 h-20 bg-red-600/80 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-red-700 active:scale-95 transition-all flex items-center justify-center text-lg font-bold backdrop-blur-sm"
                 style={{ touchAction: 'manipulation' }}
-                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, down: true })); slide(); }}
-                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, down: false })); }}
+                onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, down: true })); slide(); }}
+                onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, down: false })); }}
+                onTouchCancel={(e) => { e.preventDefault(); e.stopPropagation(); setKeys(prev => ({ ...prev, down: false })); }}
                 onMouseDown={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
                 onMouseUp={() => setKeys(prev => ({ ...prev, down: false }))}
+                onMouseLeave={() => setKeys(prev => ({ ...prev, down: false }))}
               >
                 B
               </button>
