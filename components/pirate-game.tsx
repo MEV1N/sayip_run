@@ -555,32 +555,14 @@ export default function PirateGame() {
       }
     }
 
-    const handleTouchCancel = () => {
-      resetAllKeys()
-    }
-
-    const handleMouseUp = () => {
-      resetAllKeys()
-    }
-
     if (typeof window !== "undefined") {
-      // Reset keys when losing focus or visibility
+      // Only reset keys when losing focus or visibility - not on every touch/mouse event
       window.addEventListener('blur', resetAllKeys)
-      window.addEventListener('focus', resetAllKeys)
       document.addEventListener('visibilitychange', handleVisibilityChange)
-      
-      // Global touch/mouse event cleanup
-      document.addEventListener('touchcancel', handleTouchCancel, { passive: true })
-      document.addEventListener('touchend', handleTouchCancel, { passive: true })
-      document.addEventListener('mouseup', handleMouseUp)
       
       return () => {
         window.removeEventListener('blur', resetAllKeys)
-        window.removeEventListener('focus', resetAllKeys)
         document.removeEventListener('visibilitychange', handleVisibilityChange)
-        document.removeEventListener('touchcancel', handleTouchCancel)
-        document.removeEventListener('touchend', handleTouchCancel)
-        document.removeEventListener('mouseup', handleMouseUp)
       }
     }
   }, [])
