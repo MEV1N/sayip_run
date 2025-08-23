@@ -165,19 +165,21 @@ const getResponsiveCanvasSize = () => {
   const screenHeight = window.innerHeight
   
   if (mobile) {
-    // For mobile, make canvas large and playable
-    const isLandscape = screenWidth > screenHeight
+    // Portrait-optimized mobile experience
+    const isPortrait = screenHeight > screenWidth
     
-    if (isLandscape) {
-      // Landscape mode - use almost full screen
-      const width = Math.floor(screenWidth * 0.95)
-      const height = Math.floor(screenHeight * 0.85)
-      return { width, height }
+    if (isPortrait) {
+      // Portrait mode - optimized for vertical mobile screens
+      return { 
+        width: screenWidth, 
+        height: Math.floor(screenHeight * 0.8) // Leave some space for controls
+      }
     } else {
-      // Portrait mode - use significant portion of screen
-      const width = Math.floor(screenWidth * 0.95)
-      const height = Math.floor(screenHeight * 0.5)
-      return { width, height }
+      // Landscape mode - still use full screen but optimized
+      return { 
+        width: screenWidth, 
+        height: screenHeight 
+      }
     }
   }
   
@@ -185,7 +187,7 @@ const getResponsiveCanvasSize = () => {
 }
 
 const getMobileSpeed = () => {
-  return isMobile() ? GAME_SPEED * 0.7 : GAME_SPEED // Slower on mobile for better control
+  return isMobile() ? GAME_SPEED * 0.6 : GAME_SPEED // Even slower on mobile for better control and larger gaps
 }
 
 const PIRATE_CATCHPHRASES = [
@@ -234,6 +236,10 @@ const LEVEL_PATTERNS = [
 ]
 
 function generateAICatchphrase(): string {
+  // Use a deterministic fallback during initial render to prevent hydration mismatch
+  if (typeof window === "undefined") {
+    return PIRATE_CATCHPHRASES[0] // Always return the first catchphrase on server
+  }
   const randomIndex = Math.floor(Math.random() * PIRATE_CATCHPHRASES.length)
   return PIRATE_CATCHPHRASES[randomIndex]
 }
@@ -307,6 +313,15 @@ function generateDailyChallenges(): DailyChallenge[] {
   ]
 
   // Randomly select 3 challenges for the day
+  // Use deterministic selection on server to prevent hydration mismatch
+  if (typeof window === "undefined") {
+    return challenges.slice(0, 3).map((challenge) => ({
+      ...challenge,
+      progress: 0,
+      completed: false,
+    }))
+  }
+  
   const shuffled = challenges.sort(() => 0.5 - Math.random())
   return shuffled.slice(0, 3).map((challenge) => ({
     ...challenge,
@@ -356,98 +371,111 @@ export default function PirateGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number>(0)
 
-  const [playerProgress, setPlayerProgress] = useState<PlayerProgress>(() => {
+  const [playerProgress, setPlayerProgress] = useState<PlayerProgress>({
+    totalCoins: 0,
+    gamesPlayed: 0,
+    bestScore: 0,
+    dailyChallenges: [],
+    lastChallengeReset: "",
+    pirateOutfits: generatePirateOutfits(),
+    selectedOutfit: "default",
+    totalEnemiesDefeated: 0,
+    totalSurvivalTime: 0,
+    shipUpgrades: [
+      {
+        id: "hull",
+        name: "Reinforced Hull",
+        description: "Start with extra lives",
+        cost: 50,
+        maxLevel: 3,
+        currentLevel: 0,
+        effect: { type: "starting-lives", value: 1 },
+      },
+      {
+        id: "sails",
+        name: "Swift Sails",
+        description: "Increase movement speed",
+        cost: 75,
+        maxLevel: 3,
+        currentLevel: 0,
+        effect: { type: "speed", value: 0.2 },
+      },
+      {
+        id: "compass",
+        name: "Magnetic Compass",
+        description: "Attract coins from further away",
+        cost: 100,
+        maxLevel: 3,
+        currentLevel: 0,
+        effect: { type: "coin-magnet", value: 20 },
+      },
+      {
+        id: "crew",
+        name: "Lucky Crew",
+        description: "Extra life during gameplay",
+        cost: 150,
+        maxLevel: 2,
+        currentLevel: 0,
+        effect: { type: "lives", value: 1 },
+      },
+    ],
+  })
+
+  // Load saved data after hydration to prevent mismatch
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("pirate-game-progress")
       if (saved) {
-        const progress = JSON.parse(saved)
-        // Check if daily challenges need reset
-        const today = new Date().toDateString()
-        if (progress.lastChallengeReset !== today) {
-          progress.dailyChallenges = generateDailyChallenges()
-          progress.lastChallengeReset = today
+        try {
+          const progress = JSON.parse(saved)
+          // Check if daily challenges need reset
+          const today = new Date().toDateString()
+          if (progress.lastChallengeReset !== today) {
+            progress.dailyChallenges = generateDailyChallenges()
+            progress.lastChallengeReset = today
+          }
+          // Ensure pirate outfits exist
+          if (!progress.pirateOutfits) {
+            progress.pirateOutfits = generatePirateOutfits()
+            progress.selectedOutfit = "default"
+          }
+          if (!progress.totalEnemiesDefeated) progress.totalEnemiesDefeated = 0
+          if (!progress.totalSurvivalTime) progress.totalSurvivalTime = 0
+          setPlayerProgress(progress)
+        } catch (error) {
+          console.error('Error loading saved progress:', error)
         }
-        // Ensure pirate outfits exist
-        if (!progress.pirateOutfits) {
-          progress.pirateOutfits = generatePirateOutfits()
-          progress.selectedOutfit = "default"
-        }
-        if (!progress.totalEnemiesDefeated) progress.totalEnemiesDefeated = 0
-        if (!progress.totalSurvivalTime) progress.totalSurvivalTime = 0
-        return progress
+      } else {
+        // Set initial challenges for new users
+        setPlayerProgress(prev => ({
+          ...prev,
+          dailyChallenges: generateDailyChallenges(),
+          lastChallengeReset: new Date().toDateString(),
+        }))
       }
     }
-
-    return {
-      totalCoins: 0,
-      gamesPlayed: 0,
-      bestScore: 0,
-      dailyChallenges: generateDailyChallenges(),
-      lastChallengeReset: new Date().toDateString(),
-      pirateOutfits: generatePirateOutfits(),
-      selectedOutfit: "default",
-      totalEnemiesDefeated: 0,
-      totalSurvivalTime: 0,
-      shipUpgrades: [
-        {
-          id: "hull",
-          name: "Reinforced Hull",
-          description: "Start with extra lives",
-          cost: 50,
-          maxLevel: 3,
-          currentLevel: 0,
-          effect: { type: "starting-lives", value: 1 },
-        },
-        {
-          id: "sails",
-          name: "Swift Sails",
-          description: "Increase movement speed",
-          cost: 75,
-          maxLevel: 3,
-          currentLevel: 0,
-          effect: { type: "speed", value: 0.2 },
-        },
-        {
-          id: "compass",
-          name: "Magnetic Compass",
-          description: "Attract coins from further away",
-          cost: 100,
-          maxLevel: 3,
-          currentLevel: 0,
-          effect: { type: "coin-magnet", value: 20 },
-        },
-        {
-          id: "crew",
-          name: "Lucky Crew",
-          description: "Extra life during gameplay",
-          cost: 150,
-          maxLevel: 2,
-          currentLevel: 0,
-          effect: { type: "lives", value: 1 },
-        },
-      ],
-    }
-  })
+  }, [])
 
   const [showShipUpgrades, setShowShipUpgrades] = useState(false)
   const [showChallenges, setShowChallenges] = useState(false)
   const [showOutfits, setShowOutfits] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
 
-  const [gameState, setGameState] = useState<GameState>(() => {
-    const shipBoosts = calculateShipBoosts(playerProgress.shipUpgrades)
-    const baseSpeed = getMobileSpeed()
-    return {
-      isPlaying: false,
-      isPaused: false,
-      score: 0,
-      coins: 0,
-      lives: Math.max(1, 3 + shipBoosts.startingLives),
-      gameSpeed: baseSpeed * shipBoosts.speedMultiplier,
-      shipBoosts,
-      currentCatchphrase: generateAICatchphrase(),
-      levelSeed: Math.floor(Math.random() * 10000),
-    }
+  const [gameState, setGameState] = useState<GameState>({
+    isPlaying: false,
+    isPaused: false,
+    score: 0,
+    coins: 0,
+    lives: 3, // Static initial value to prevent hydration mismatch
+    gameSpeed: GAME_SPEED,
+    shipBoosts: {
+      speedMultiplier: 1,
+      extraLives: 0,
+      coinMagnetRange: 0,
+      startingLives: 0,
+    },
+    currentCatchphrase: "Ahoy matey! Ready to sail?", // Static initial value
+    levelSeed: 1000, // Static initial value
   })
 
   function calculateShipBoosts(upgrades: ShipUpgrade[]) {
@@ -481,6 +509,20 @@ export default function PirateGame() {
     )
   }
 
+  // Update game state when playerProgress changes (after hydration)
+  useEffect(() => {
+    const shipBoosts = calculateShipBoosts(playerProgress.shipUpgrades)
+    const baseSpeed = getMobileSpeed()
+    setGameState(prev => ({
+      ...prev,
+      lives: Math.max(1, 3 + shipBoosts.startingLives),
+      gameSpeed: baseSpeed * shipBoosts.speedMultiplier,
+      shipBoosts,
+      currentCatchphrase: generateAICatchphrase(),
+      levelSeed: Math.floor(Math.random() * 10000),
+    }))
+  }, [playerProgress.shipUpgrades])
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("pirate-game-progress", JSON.stringify(playerProgress))
@@ -494,6 +536,8 @@ export default function PirateGame() {
     }
 
     if (typeof window !== "undefined") {
+      // Set initial size after hydration
+      setCanvasSize(getResponsiveCanvasSize())
       window.addEventListener('resize', handleResize)
       return () => window.removeEventListener('resize', handleResize)
     }
@@ -518,7 +562,7 @@ export default function PirateGame() {
   const [particles, setParticles] = useState<Particle[]>([])
   const [clouds, setClouds] = useState<Cloud[]>([])
   const [animationFrame, setAnimationFrame] = useState(0)
-  const [canvasSize, setCanvasSize] = useState(getResponsiveCanvasSize())
+  const [canvasSize, setCanvasSize] = useState({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
   const [gameOverTimer, setGameOverTimer] = useState<NodeJS.Timeout | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [keys, setKeys] = useState({
@@ -527,6 +571,7 @@ export default function PirateGame() {
     up: false,
     down: false
   })
+  const [platformOffset, setPlatformOffset] = useState(0)
 
   // Game controls
   const jump = useCallback(() => {
@@ -658,7 +703,7 @@ export default function PirateGame() {
     }
 
     const baseObstacle = {
-      x: canvasSize.width + Math.random() * 200,
+      x: canvasSize.width + (isMobile() ? Math.random() * 300 : Math.random() * 200), // Larger spawn distance on mobile
       y: selectedType === "gap" ? 332 : selectedType === "parrot" ? 200 + Math.random() * 50 : 300,
       width: selectedType === "gap" ? 60 : selectedType === "treasure-chest" ? 40 : 32,
       height: selectedType === "gap" ? 68 : selectedType === "treasure-chest" ? 28 : 32,
@@ -689,25 +734,41 @@ export default function PirateGame() {
     }
   }, [gameState.levelSeed, gameState.score])
 
-  // Generate coins
+  // Generate coins with endless gameplay positioning
   const generateCoin = useCallback(
-    (): Coin => ({
-      x: canvasSize.width + Math.random() * 300,
-      y: 200 + Math.random() * 100,
-      width: 16,
-      height: 16,
-      collected: false,
-    }),
+    (): Coin => {
+      const groundY = 316  // Ground level for coins
+      
+      // Various coin heights for endless gameplay
+      const coinPositions = [
+        groundY - 16,  // On ground (most common)
+        groundY - 16,  // More ground coins
+        groundY - 56,  // On low platform
+        groundY - 96,  // On medium platform
+        groundY - 136, // On high platform
+        groundY - 16,  // Even more ground coins for endless gameplay
+      ]
+      
+      const coinY = coinPositions[Math.floor(Math.random() * coinPositions.length)]
+      
+      return {
+        x: 0, // Will be set by caller for endless positioning
+        y: coinY,
+        width: 16,
+        height: 16,
+        collected: false,
+      }
+    },
     [],
   )
 
-  // Generate power-up
+  // Generate power-up for endless gameplay
   const generatePowerUp = useCallback((): PowerUp => {
     const types: PowerUp["type"][] = ["speed-boost", "coin-magnet", "extra-life"]
     const type = types[Math.floor(Math.random() * types.length)]
 
     return {
-      x: canvasSize.width + Math.random() * 400,
+      x: 0, // Will be set by caller for endless positioning
       y: 220 + Math.random() * 80,
       width: 20,
       height: 20,
@@ -1332,10 +1393,10 @@ export default function PirateGame() {
     // Draw animated waves
     drawWaves(ctx, animationFrame, canvasSize.width, canvasSize.height)
 
-    // Draw static dock planks with enhanced detail
+    // Draw scrolling dock planks with enhanced detail
     ctx.fillStyle = "#8b4513"
-    for (let i = 0; i < CANVAS_WIDTH + 100; i += 50) {
-      const x = i
+    for (let i = -100; i < canvasSize.width + 200; i += 50) {
+      const x = i + (platformOffset % 50) // Make planks scroll with platform
       ctx.fillRect(x, 332, 48, 68)
 
       // Wood grain
@@ -1357,7 +1418,7 @@ export default function PirateGame() {
       ctx.strokeRect(x, 332, 48, 68)
     }
 
-    // Update player physics and manual movement
+    // Update player physics with platform collision detection
     setPlayer((prev) => {
       let newX = prev.x
       let newY = prev.y + prev.velocityY
@@ -1368,13 +1429,35 @@ export default function PirateGame() {
       const moveSpeed = 5
       if (keys.left && newX > 0) {
         newX -= moveSpeed
+        // Update platform offset when moving left (slower scroll)
+        setPlatformOffset(prevOffset => prevOffset + moveSpeed * 0.2)
       }
       if (keys.right && newX < canvasSize.width - prev.width) {
         newX += moveSpeed
+        // Update platform offset when moving right (slower scroll)
+        setPlatformOffset(prevOffset => prevOffset - moveSpeed * 0.2)
       }
 
-      // Vertical physics
-      if (newY >= prev.groundY) {
+      // Check collision with obstacles for landing
+      let onPlatform = false
+      obstacles.forEach((obstacle) => {
+        if (obstacle.type === "barrel" || obstacle.type === "treasure-chest") {
+          // Check if player is landing on top of obstacle
+          if (newX + prev.width > obstacle.x && 
+              newX < obstacle.x + obstacle.width &&
+              newY + prev.height >= obstacle.y &&
+              newY + prev.height <= obstacle.y + 10 && // Small tolerance for landing
+              prev.velocityY >= 0) { // Only when falling/landing
+            newY = obstacle.y - prev.height
+            newVelocityY = 0
+            newIsJumping = false
+            onPlatform = true
+          }
+        }
+      })
+
+      // Vertical physics - ground collision
+      if (!onPlatform && newY >= prev.groundY) {
         newY = prev.groundY
         newVelocityY = 0
         newIsJumping = false
@@ -1392,48 +1475,50 @@ export default function PirateGame() {
     // Draw enhanced player
     drawPixelPirate(ctx, player.x, player.y, player.width, player.height, player.isSliding)
 
-    // Update obstacles
+    // Update obstacles - endless generation with slower movement
     setObstacles((prev) => {
       const updated = prev
         .map((obstacle) => {
           const newObstacle = { ...obstacle }
 
-          // Update position
-          if (obstacle.type === "moonwalk-crab") {
-            // Moonwalk crabs move slower and backwards
-            newObstacle.x = obstacle.x - gameState.gameSpeed * 0.7
-          } else if (obstacle.type === "parrot") {
-            // Parrots bob up and down
-            newObstacle.x = obstacle.x - gameState.gameSpeed
-            if (obstacle.behavior) {
-              newObstacle.y =
-                obstacle.y + Math.sin(animationFrame * obstacle.behavior.frequency!) * obstacle.behavior.amplitude!
-            }
-
-            // Parrots throw bananas occasionally
-            if (Math.random() < 0.02 && obstacle.x < CANVAS_WIDTH && obstacle.x > 0) {
-              const newBanana: Projectile = {
-                x: obstacle.x,
-                y: obstacle.y + 16,
-                velocityX: -3,
-                velocityY: Math.random() * 4 - 2,
-                width: 8,
-                height: 4,
-                type: "banana",
-              }
-              setProjectiles((prev) => [...prev, newBanana])
+          if (obstacle.type === "crab") {
+            // Red crabs move toward the player but slower
+            const dx = player.x - obstacle.x
+            const dy = player.y - obstacle.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            
+            if (distance > 5) { // Prevent jittery movement when very close
+              const speed = 1 // Slower crab movement speed
+              newObstacle.x += (dx / distance) * speed
+              newObstacle.y += (dy / distance) * speed * 0.2 // Much slower vertical movement
             }
           } else {
-            newObstacle.x = obstacle.x - gameState.gameSpeed
+            // All other obstacles move much slower with platform scrolling
+            newObstacle.x += platformOffset * 0.05 // Much slower platform movement
           }
 
           return newObstacle
         })
-        .filter((obstacle) => obstacle.x > -obstacle.width)
+        .filter((obstacle) => {
+          // Keep obstacles within reasonable bounds for endless gameplay
+          if (obstacle.type === "crab") {
+            const dx = player.x - obstacle.x
+            const dy = player.y - obstacle.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            return distance < canvasSize.width * 2 // Keep crabs within 2 screen widths
+          }
+          // Keep static obstacles if they're not too far from player
+          return Math.abs(obstacle.x - player.x) < canvasSize.width * 1.5
+        })
 
-      // Add new obstacles
-      if (updated.length === 0 || updated[updated.length - 1].x < CANVAS_WIDTH - 200) {
-        updated.push(generateObstacle())
+      // Endless obstacle generation - spawn ahead of player
+      const playerRegion = player.x + canvasSize.width * 0.5 // Spawn ahead of player
+      const hasObstaclesAhead = updated.some(obs => obs.x > playerRegion && obs.x < playerRegion + 400)
+      
+      if (!hasObstaclesAhead || Math.random() < 0.03) { // Higher spawn rate for endless gameplay
+        const newObstacle = generateObstacle()
+        newObstacle.x = playerRegion + Math.random() * 300 + 200 // Spawn ahead of player
+        updated.push(newObstacle)
       }
 
       return updated
@@ -1499,13 +1584,16 @@ export default function PirateGame() {
       const updated = prev
         .map((powerUp) => ({
           ...powerUp,
-          x: powerUp.x, // Power-ups stay stationary
+          x: powerUp.x + platformOffset * 0.03, // Power-ups move slower with platform
         }))
-        .filter((powerUp) => !powerUp.collected) // Remove x position filter since they don't move
+        .filter((powerUp) => !powerUp.collected && Math.abs(powerUp.x - player.x) < canvasSize.width * 1.5) // Keep power-ups within bounds
 
-      // Add new power-ups occasionally
-      if (Math.random() < 0.005) {
-        updated.push(generatePowerUp())
+      // Endless power-up generation
+      const powerUpChance = isMobile() ? 0.003 : 0.002  // Lower frequency for balance
+      if (Math.random() < powerUpChance) {
+        const newPowerUp = generatePowerUp()
+        newPowerUp.x = player.x + canvasSize.width * 0.5 + Math.random() * 300 + 100 // Spawn ahead of player
+        updated.push(newPowerUp)
       }
 
       return updated
@@ -1524,15 +1612,20 @@ export default function PirateGame() {
           const magnetPos = checkCoinMagnet(coin)
           return {
             ...coin,
-            x: magnetPos.x, // Coins stay stationary
+            x: magnetPos.x + platformOffset * 0.03, // Coins move slower with platform
             y: magnetPos.y,
           }
         })
-        .filter((coin) => !coin.collected) // Remove x position filter since coins don't move
+        .filter((coin) => !coin.collected && Math.abs(coin.x - player.x) < canvasSize.width * 1.5) // Keep coins within reasonable bounds
 
-      // Add new coins
-      if (Math.random() < 0.02) {
-        updated.push(generateCoin())
+      // Endless coin generation around player
+      const playerRegion = player.x + canvasSize.width * 0.5
+      const hasCoinsAhead = updated.some(coin => coin.x > playerRegion && coin.x < playerRegion + 300)
+      
+      if (!hasCoinsAhead || Math.random() < 0.02) { // Spawn coins ahead
+        const newCoin = generateCoin()
+        newCoin.x = playerRegion + Math.random() * 400 + 100 // Spawn ahead of player
+        updated.push(newCoin)
       }
 
       return updated
@@ -1568,6 +1661,7 @@ export default function PirateGame() {
       ctx.fillRect(particle.x, particle.y, particle.size, particle.size)
     })
 
+    // Enhanced collision detection with enemy stomping
     obstacles.forEach((obstacle) => {
       if (checkCollision(player, obstacle)) {
         if (obstacle.type === "gap" && player.y + player.height >= obstacle.y) {
@@ -1580,8 +1674,51 @@ export default function PirateGame() {
           setGameState((prev) => ({ ...prev, coins: prev.coins + 5, score: prev.score + 50 }))
           // Remove the treasure chest
           setObstacles((prev) => prev.filter((obs) => obs !== obstacle))
+        } else if (obstacle.type === "crab" || obstacle.type === "moonwalk-crab") {
+          // Check if player is stomping enemy (jumping on top)
+          const playerBottom = player.y + player.height
+          const playerTop = player.y
+          const enemyTop = obstacle.y
+          const enemyBottom = obstacle.y + obstacle.height
+          
+          if (playerBottom <= enemyTop + 10 && // Player's bottom is near enemy's top
+              player.velocityY >= 0 && // Player is falling/landing
+              playerTop < enemyTop) { // Player is above enemy
+            // Stomp enemy - destroy it and bounce player
+            addParticles(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2, "#ff6b6b", 12)
+            setGameState((prev) => ({ 
+              ...prev, 
+              score: prev.score + 100,
+              coins: prev.coins + 1 
+            }))
+            // Remove the enemy
+            setObstacles((prev) => prev.filter((obs) => obs !== obstacle))
+            // Give player a small bounce
+            setPlayer((prev) => ({
+              ...prev,
+              velocityY: -8, // Small bounce
+              isJumping: true
+            }))
+          } else {
+            // Side collision - take damage
+            addParticles(player.x + player.width / 2, player.y + player.height / 2, "#ff0000", 8)
+            setGameState((prev) => ({ ...prev, lives: Math.max(1, prev.lives - 1) }))
+          }
+        } else if (obstacle.type === "barrel") {
+          // Barrels can be landed on but cause damage if hit from side
+          const playerBottom = player.y + player.height
+          const playerTop = player.y
+          const barrelTop = obstacle.y
+          
+          if (playerBottom <= barrelTop + 5 && player.velocityY >= 0 && playerTop < barrelTop) {
+            // Landing on barrel is safe (already handled in player physics)
+          } else {
+            // Side collision with barrel - take damage
+            addParticles(player.x + player.width / 2, player.y + player.height / 2, "#ff0000", 8)
+            setGameState((prev) => ({ ...prev, lives: Math.max(1, prev.lives - 1) }))
+          }
         } else if (obstacle.type !== "gap") {
-          // Hit obstacle
+          // Other obstacles - take damage
           addParticles(player.x + player.width / 2, player.y + player.height / 2, "#ff0000", 8)
           setGameState((prev) => ({ ...prev, lives: Math.max(1, prev.lives - 1) }))
         }
@@ -1666,9 +1803,11 @@ export default function PirateGame() {
     powerUps,
     projectiles,
     backgroundX,
+    platformOffset,
     particles,
     clouds,
     animationFrame,
+    keys,
     checkCollision,
     checkCoinMagnet,
     generateObstacle,
@@ -1731,7 +1870,27 @@ export default function PirateGame() {
     setPowerUps([])
     setProjectiles([])
     setBackgroundX(0)
+    setPlatformOffset(0)
     setParticles([])
+    
+    // Generate initial scattered coins for endless gameplay
+    const initialCoins: Coin[] = []
+    for (let i = 0; i < 12; i++) {
+      const coin = generateCoin()
+      coin.x = 200 + i * 100 + Math.random() * 50 // Spread coins ahead of player
+      initialCoins.push(coin)
+    }
+    setCoins(initialCoins)
+    
+    // Generate initial obstacles for endless gameplay
+    const initialObstacles: Obstacle[] = []
+    for (let i = 0; i < 5; i++) {
+      const obstacle = generateObstacle()
+      obstacle.x = 300 + i * 200 + Math.random() * 100 // Spread obstacles ahead
+      initialObstacles.push(obstacle)
+    }
+    setObstacles(initialObstacles)
+    
     closeAllMenus()
     
     // Clear any existing game over timer
@@ -1939,8 +2098,8 @@ export default function PirateGame() {
 
   return (
     <div className="flex flex-col items-center gap-2 sm:gap-4 max-w-4xl mx-auto p-1 sm:p-4 min-h-screen">
-      {/* Enhanced Game HUD */}
-      <Card className="w-full p-1 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
+      {/* Enhanced Game HUD - Hidden on mobile for Mario-like experience */}
+      <Card className="w-full p-1 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg hidden sm:block">
         <div className="flex flex-col sm:flex-row justify-between items-center text-card-foreground gap-1 sm:gap-0">
           <div className="flex flex-wrap gap-2 sm:gap-6 items-center justify-center sm:justify-start">
             <span className="font-bold text-xs sm:text-lg">
@@ -2008,16 +2167,17 @@ export default function PirateGame() {
           onClick={gameState.isPlaying ? undefined : startGame}
         />
 
-        {/* Mobile Arrow Controls */}
+        {/* Mario-style Mobile Controls */}
         {isMobile() && gameState.isPlaying && (
-          <div className="absolute bottom-4 left-4 right-4 flex justify-between pointer-events-none">
-            {/* Left side controls - Left/Right arrows */}
-            <div className="flex gap-3 pointer-events-auto">
+          <div className="absolute bottom-4 left-4 right-4 flex justify-between pointer-events-none z-50">
+            {/* Left side D-pad style controls */}
+            <div className="flex gap-4 pointer-events-auto">
               {/* Left arrow */}
               <button
-                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
-                onTouchStart={() => setKeys(prev => ({ ...prev, left: true }))}
-                onTouchEnd={() => setKeys(prev => ({ ...prev, left: false }))}
+                className="w-20 h-20 bg-black/40 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-black/60 active:scale-95 transition-all flex items-center justify-center text-3xl font-bold backdrop-blur-sm"
+                style={{ touchAction: 'manipulation' }}
+                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, left: true })); }}
+                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, left: false })); }}
                 onMouseDown={() => setKeys(prev => ({ ...prev, left: true }))}
                 onMouseUp={() => setKeys(prev => ({ ...prev, left: false }))}
               >
@@ -2025,9 +2185,10 @@ export default function PirateGame() {
               </button>
               {/* Right arrow */}
               <button
-                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
-                onTouchStart={() => setKeys(prev => ({ ...prev, right: true }))}
-                onTouchEnd={() => setKeys(prev => ({ ...prev, right: false }))}
+                className="w-20 h-20 bg-black/40 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-black/60 active:scale-95 transition-all flex items-center justify-center text-3xl font-bold backdrop-blur-sm"
+                style={{ touchAction: 'manipulation' }}
+                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, right: true })); }}
+                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, right: false })); }}
                 onMouseDown={() => setKeys(prev => ({ ...prev, right: true }))}
                 onMouseUp={() => setKeys(prev => ({ ...prev, right: false }))}
               >
@@ -2035,27 +2196,29 @@ export default function PirateGame() {
               </button>
             </div>
             
-            {/* Right side controls - Jump and Slide */}
-            <div className="flex flex-col gap-3 pointer-events-auto">
-              {/* Jump button */}
+            {/* Right side action buttons */}
+            <div className="flex gap-4 pointer-events-auto">
+              {/* Jump button - A button style */}
               <button
-                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
-                onTouchStart={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
-                onTouchEnd={() => setKeys(prev => ({ ...prev, up: false }))}
+                className="w-20 h-20 bg-green-600/80 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-green-700 active:scale-95 transition-all flex items-center justify-center text-lg font-bold backdrop-blur-sm"
+                style={{ touchAction: 'manipulation' }}
+                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, up: true })); jump(); }}
+                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, up: false })); }}
                 onMouseDown={() => { setKeys(prev => ({ ...prev, up: true })); jump(); }}
                 onMouseUp={() => setKeys(prev => ({ ...prev, up: false }))}
               >
-                ↑
+                A
               </button>
-              {/* Slide button */}
+              {/* Slide button - B button style */}
               <button
-                className="w-14 h-14 bg-black/30 text-black rounded-full border border-black/20 shadow-lg active:bg-black/50 active:scale-95 transition-all flex items-center justify-center text-2xl font-bold backdrop-blur-sm"
-                onTouchStart={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
-                onTouchEnd={() => setKeys(prev => ({ ...prev, down: false }))}
+                className="w-20 h-20 bg-red-600/80 text-white rounded-full border-2 border-white/30 shadow-2xl active:bg-red-700 active:scale-95 transition-all flex items-center justify-center text-lg font-bold backdrop-blur-sm"
+                style={{ touchAction: 'manipulation' }}
+                onTouchStart={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, down: true })); slide(); }}
+                onTouchEnd={(e) => { e.preventDefault(); setKeys(prev => ({ ...prev, down: false })); }}
                 onMouseDown={() => { setKeys(prev => ({ ...prev, down: true })); slide(); }}
                 onMouseUp={() => setKeys(prev => ({ ...prev, down: false }))}
               >
-                ↓
+                B
               </button>
             </div>
           </div>
